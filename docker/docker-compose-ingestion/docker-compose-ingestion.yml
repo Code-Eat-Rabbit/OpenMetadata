@@ -12,13 +12,30 @@
 version: "3.9"
 volumes:
   ingestion-volume-dag-airflow:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ../development/docker-volume/ingestion-volume-dag-airflow
   ingestion-volume-dags:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ../development/docker-volume/ingestion-volume-dags
   ingestion-volume-tmp:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ../development/docker-volume/ingestion-volume-tmp
   es-data:
 services:  
   ingestion:
     container_name: openmetadata_ingestion
-    image: docker.getcollate.io/openmetadata/ingestion:1.10.0-SNAPSHOT
+    build:
+      context: .
+      dockerfile: Dockerfile.ingestion
     environment:
       AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
@@ -47,7 +64,8 @@ services:
     ports:
       - "8080:8080"
     networks:
-      - app_net
+#      - app_net
+      - local_app_net  # <-- 修改这里：加入主文件定义的网络
     volumes:
       - ingestion-volume-dag-airflow:/opt/airflow/dag_generated_configs
       - ingestion-volume-dags:/opt/airflow/dags
@@ -55,8 +73,11 @@ services:
 
 
 networks:
-  app_net:
-    ipam:
-      driver: default
-      config:
-        - subnet: "172.16.240.0/24"
+#  app_net:
+#    ipam:
+#      driver: default
+#      config:
+#        - subnet: "172.16.240.0/24"
+  local_app_net: # <-- 修改这里：声明要使用的网络
+    external: true     # <-- 关键修改：告诉 Docker Compose 这个网络是外部创建的
+    name: ometa_network # <-- 确保与主文件中的网络名称匹配

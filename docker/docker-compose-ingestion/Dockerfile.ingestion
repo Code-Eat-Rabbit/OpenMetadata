@@ -1,0 +1,24 @@
+# 使用官方的 OpenMetadata ingestion 镜像作为基础
+FROM docker.getcollate.io/openmetadata/ingestion:1.9.7
+
+# 切换到 root 用户来安装系统软件包
+USER root
+
+# 更新软件包列表并安装编译 mysqlclient 所需的依赖
+RUN apt-get update && apt-get install -y build-essential default-libmysqlclient-dev pkg-config && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# 切换回非特权的 airflow 用户
+USER airflow
+
+# --- START: 新增的关键优化 ---
+# 将用户本地的 bin 目录添加到 PATH 环境变量中
+# 这使得通过 pip 安装的命令行工具（如 pip、airflow 等）可以直接在终端中使用
+ENV PATH="/home/airflow/.local/bin:${PATH}"
+# --- END: 新增的关键优化 ---
+
+# 复制依赖文件
+COPY requirements.txt /opt/airflow/requirements.txt
+
+# 安装 requirements.txt 中定义的 Python 包
+RUN pip install --no-cache-dir -r /opt/airflow/requirements.txt

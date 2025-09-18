@@ -1,0 +1,7 @@
+# It's a good practice to pin versions for consistent builds
+apache-airflow-providers-mysql
+pandas==2.2.0
+s3fs
+
+# Add any other Python packages your DAGs might need below
+# another-package==1.2.3
