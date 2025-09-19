@@ -5,3 +5,8 @@ s3fs
 
 # Add any other Python packages your DAGs might need below
 # another-package==1.2.3
+
+# Python的MySQL数据库驱动（对应连接字符串中的 "mysql+mysqldb"）
+mysqlclient
+# 用于在DAG中执行HTTP请求以下载文件
+requests

@@ -36,6 +36,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.ingestion
+    env_file:
+      - env-mysql
     environment:
       AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
