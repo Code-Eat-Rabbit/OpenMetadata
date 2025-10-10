@@ -43,7 +43,7 @@ class TestOwnerResolver(unittest.TestCase):
         config = {
             "default": "default-team",
             "database": "db-team",
-            "schema": "schema-team",
+            "databaseSchema": "schema-team",
             "table": "table-team",
         }
 
@@ -56,6 +56,13 @@ class TestOwnerResolver(unittest.TestCase):
         self.assertIsNotNone(result)
         self.mock_metadata.get_reference_by_name.assert_called_with(
             name="db-team", is_owner=True
+        )
+
+        # Test databaseSchema level
+        result = resolver.resolve_owner(entity_type="databaseSchema", entity_name="test_schema")
+        self.assertIsNotNone(result)
+        self.mock_metadata.get_reference_by_name.assert_called_with(
+            name="schema-team", is_owner=True
         )
 
         # Test table level
