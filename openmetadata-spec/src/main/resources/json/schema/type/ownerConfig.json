@@ -7,70 +7,145 @@
   "type": "object",
   "properties": {
     "default": {
-      "description": "Default owner applied to all entities when no specific owner is configured (user or team name/email)",
-      "type": "string",
-      "examples": ["data-engineering-team", "admin@company.com"]
+      "description": "Default owner(s) applied to all entities when no specific owner is configured. Can be a single owner or multiple owners (user or team name/email)",
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Single owner name/email"
+        },
+        {
+          "type": "array",
+          "description": "Multiple owners",
+          "items": {
+            "type": "string"
+          }
+        }
+      ],
+      "examples": ["data-engineering-team", ["data-team", "admin@company.com"]]
     },
     "service": {
-      "description": "Owner for the service level",
-      "type": "string"
+      "description": "Owner(s) for the service level. Can be a single owner or multiple owners",
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Single owner name/email"
+        },
+        {
+          "type": "array",
+          "description": "Multiple owners",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
     },
     "database": {
-      "description": "Owner for database entities. Can be a single owner or a map of database names to owners",
+      "description": "Owner(s) for database entities. Can be a single owner, multiple owners, or a map of database names to their owner(s)",
       "oneOf": [
         {
           "type": "string",
           "description": "Single owner for all databases"
         },
         {
-          "type": "object",
-          "description": "Map of database names to their owners",
-          "additionalProperties": {
+          "type": "array",
+          "description": "Multiple owners for all databases",
+          "items": {
             "type": "string"
+          }
+        },
+        {
+          "type": "object",
+          "description": "Map of database names to their owner(s)",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
           },
           "examples": [{
             "sales_db": "sales-team",
-            "analytics_db": "analytics-team"
+            "analytics_db": ["analytics-team", "data-science-team"]
           }]
         }
       ]
     },
     "databaseSchema": {
-      "description": "Owner for schema entities. Can be a single owner or a map of schema FQNs to owners",
+      "description": "Owner(s) for schema entities. Can be a single owner, multiple owners, or a map of schema FQNs to their owner(s)",
       "oneOf": [
         {
           "type": "string",
           "description": "Single owner for all schemas"
         },
         {
-          "type": "object",
-          "description": "Map of schema names/FQNs to their owners",
-          "additionalProperties": {
+          "type": "array",
+          "description": "Multiple owners for all schemas",
+          "items": {
             "type": "string"
+          }
+        },
+        {
+          "type": "object",
+          "description": "Map of schema names/FQNs to their owner(s)",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
           },
           "examples": [{
             "public": "public-schema-team",
-            "analytics_db.analytics_schema": "analytics-team"
+            "analytics_db.analytics_schema": ["analytics-team", "reporting-team"]
           }]
         }
       ]
     },
     "table": {
-      "description": "Owner for table entities. Can be a single owner or a map of table FQNs to owners",
+      "description": "Owner(s) for table entities. Can be a single owner, multiple owners, or a map of table FQNs to their owner(s)",
       "oneOf": [
         {
           "type": "string",
           "description": "Single owner for all tables"
         },
         {
-          "type": "object",
-          "description": "Map of table names/FQNs to their owners",
-          "additionalProperties": {
+          "type": "array",
+          "description": "Multiple owners for all tables",
+          "items": {
             "type": "string"
+          }
+        },
+        {
+          "type": "object",
+          "description": "Map of table names/FQNs to their owner(s)",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
           },
           "examples": [{
             "customers": "customer-data-team",
-            "sales_db.public.orders": "sales-team"
+            "sales_db.public.orders": ["sales-team", "finance-team"]
           }]
         }
       ]
@@ -87,7 +162,7 @@
       "default": "data-platform-team"
     },
     {
-      "default": "data-team",
+      "default": ["data-team", "governance-team"],
       "database": "database-admins",
       "databaseSchema": "schema-owners",
       "table": "table-stewards",
@@ -97,11 +172,15 @@
       "default": "data-team",
       "database": {
         "sales_db": "sales-team",
-        "analytics_db": "analytics-team"
+        "analytics_db": ["analytics-team", "data-science-team"]
       },
       "databaseSchema": {
         "public": "public-team",
-        "analytics_db.reporting": "reporting-team"
+        "analytics_db.reporting": ["reporting-team", "bi-team"]
+      },
+      "table": {
+        "customers": "customer-team",
+        "sales_db.public.orders": ["sales-team", "finance-team"]
       },
       "enableInheritance": true
     }
