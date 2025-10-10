@@ -92,7 +92,7 @@
     },
     "includeOwners":{
       "title": "Include Owners",
-      "description": "Set the 'Include Owners' toggle to control whether to include owners to the ingested entity if the owner email matches with a user stored in the OM server as part of metadata ingestion. If the ingested entity already exists and has an owner, the owner will not be overwritten.",
+      "description": "Set the 'Include Owners' toggle to control whether to include owners from the source system to the ingested entity if the owner email matches with a user stored in the OM server as part of metadata ingestion.",
       "type": "boolean",
       "default": false
     },
@@ -100,6 +100,14 @@
       "title": "Hierarchical Owner Configuration",
       "description": "Advanced configuration for managing owners at multiple hierarchy levels (Service, Database, Schema, Table) with custom mappings and inheritance rules.",
       "$ref": "../type/ownerConfig.json"
+    },
+    "ownerMergeMode": {
+      "title": "Owner Merge Mode",
+      "description": "Controls how owners from different sources (ownerConfig, includeOwners, existing entity) are merged when updating entities. Only applies when overrideMetadata is enabled.",
+      "type": "string",
+      "enum": ["replace", "merge", "append"],
+      "default": "replace",
+      "examples": ["replace", "merge", "append"]
     },
     "includeStoredProcedures": {
       "description": "Optional configuration to toggle the Stored Procedures ingestion.",

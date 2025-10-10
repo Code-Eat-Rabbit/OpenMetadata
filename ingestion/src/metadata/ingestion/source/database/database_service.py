@@ -51,6 +51,7 @@ from metadata.generated.schema.metadataIngestion.databaseServiceMetadataPipeline
 from metadata.generated.schema.metadataIngestion.workflow import (
     Source as WorkflowSource,
 )
+from metadata.generated.schema.type.entityReference import EntityReference
 from metadata.generated.schema.type.entityReferenceList import EntityReferenceList
 from metadata.generated.schema.type.tagLabel import TagLabel
 from metadata.ingestion.api.delete import delete_entity_from_source
@@ -74,6 +75,63 @@ from metadata.utils.owner_utils import get_owner_from_config
 from metadata.utils.tag_utils import get_tag_label
 
 logger = ingestion_logger()
+
+
+def merge_entity_owners(
+    new_owners: Optional[EntityReferenceList],
+    existing_owners: Optional[EntityReferenceList],
+    merge_mode: str = "replace",
+) -> Optional[EntityReferenceList]:
+    """
+    Merge new owners with existing owners based on the merge mode.
+
+    Args:
+        new_owners: Newly resolved owners from configuration or source
+        existing_owners: Existing owners from the entity in OpenMetadata
+        merge_mode: One of "replace", "merge", "append"
+            - "replace": Use only new owners, discard existing ones
+            - "merge": Combine new and existing owners, remove duplicates
+            - "append": Keep existing owners, add new ones (same as merge)
+
+    Returns:
+        Merged EntityReferenceList or None
+    """
+    if merge_mode == "replace":
+        # Simply return new owners, ignore existing
+        return new_owners
+
+    if merge_mode in ("merge", "append"):
+        # Combine new and existing owners, remove duplicates
+        if not new_owners and not existing_owners:
+            return None
+        if not new_owners:
+            return existing_owners
+        if not existing_owners:
+            return new_owners
+
+        # Combine and deduplicate by owner ID
+        combined_owners = []
+        seen_ids = set()
+
+        # Add existing owners first
+        if existing_owners and existing_owners.root:
+            for owner in existing_owners.root:
+                if owner.id not in seen_ids:
+                    combined_owners.append(owner)
+                    seen_ids.add(owner.id)
+
+        # Add new owners
+        if new_owners and new_owners.root:
+            for owner in new_owners.root:
+                if owner.id not in seen_ids:
+                    combined_owners.append(owner)
+                    seen_ids.add(owner.id)
+
+        return EntityReferenceList(root=combined_owners) if combined_owners else None
+
+    # Default to replace mode if unknown mode
+    logger.warning(f"Unknown ownerMergeMode '{merge_mode}', defaulting to 'replace'")
+    return new_owners
 
 
 class DataModelLink(BaseModel):
@@ -902,6 +960,68 @@ class DatabaseServiceSource(
             logger.debug(traceback.format_exc())
             logger.warning(f"Error processing owner for table {simple_table_name if 'simple_table_name' in locals() else table_name}: {exc}")
         return None
+
+    def get_owner_ref_with_merge(
+        self,
+        entity_fqn: str,
+        entity_type: Any,
+        new_owners: Optional[EntityReferenceList],
+    ) -> Optional[EntityReferenceList]:
+        """
+        Apply owner merge mode when updating existing entities.
+
+        This method checks if the entity exists, retrieves its current owners,
+        and merges them with new owners based on ownerMergeMode configuration.
+
+        Args:
+            entity_fqn: Fully qualified name of the entity
+            entity_type: Entity type class (Table, Database, DatabaseSchema, etc.)
+            new_owners: Newly computed owners from config/source/default
+
+        Returns:
+            Merged EntityReferenceList based on ownerMergeMode, or new_owners if entity doesn't exist
+        """
+        try:
+            # Only apply merge logic if overrideMetadata is enabled
+            if not self.source_config.overrideMetadata:
+                return new_owners
+
+            # Get merge mode from config (default to "replace")
+            merge_mode = getattr(self.source_config, "ownerMergeMode", "replace")
+
+            # If replace mode or entity is new, just return new owners
+            if merge_mode == "replace":
+                return new_owners
+
+            # For merge/append modes, we need to fetch existing entity
+            existing_entity = self.metadata.get_by_name(
+                entity=entity_type, fqn=entity_fqn, fields=["owners"]
+            )
+
+            if existing_entity and existing_entity.owners:
+                # Merge existing and new owners
+                merged_owners = merge_entity_owners(
+                    new_owners=new_owners,
+                    existing_owners=existing_entity.owners,
+                    merge_mode=merge_mode,
+                )
+                logger.debug(
+                    f"Merged owners for {entity_fqn}: mode={merge_mode}, "
+                    f"existing={len(existing_entity.owners.root) if existing_entity.owners and existing_entity.owners.root else 0}, "
+                    f"new={len(new_owners.root) if new_owners and new_owners.root else 0}, "
+                    f"merged={len(merged_owners.root) if merged_owners and merged_owners.root else 0}"
+                )
+                return merged_owners
+
+            # Entity doesn't exist or has no owners, return new owners
+            return new_owners
+
+        except Exception as exc:
+            logger.debug(traceback.format_exc())
+            logger.warning(
+                f"Error merging owners for {entity_fqn}: {exc}, returning new owners"
+            )
+            return new_owners
 
     def mark_tables_as_deleted(self):
         """
