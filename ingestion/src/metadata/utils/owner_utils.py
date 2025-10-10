@@ -28,14 +28,15 @@ class OwnerResolver:
         "database": "db-owner" | {"db1": "owner1" | ["owner1", "owner2"]},
         "databaseSchema": "schema-owner" | {"schema1": "owner1" | ["owner1", "owner2"]},
         "table": "table-owner" | {"table1": "owner1" | ["owner1", "owner2"]},
-        "enableInheritance": true,  # Default true
+        "enableInheritance": true,  # Default true - inherit from parent entity
         "ownerPriority": ["rule", "source", "default"]  # Configurable priority order
     }
 
     Resolution order (configurable via ownerPriority):
-    - "rule": Current level configuration (FQN > name match)
-    - "source": Inherited parent owner (if enableInheritance=true)
-    - "default": Default configuration
+    - "rule": Current level configuration from ownerConfig (FQN > name match)
+    - "source": Owner from original data source/database system (requires includeOwners=true)
+    - "default": Default owner configuration
+    - Inheritance: Can inherit from parent entity when no owner found (controlled by enableInheritance)
 
     Default priority order: ["rule", "source", "default"]
     """
@@ -58,6 +59,7 @@ class OwnerResolver:
         self,
         entity_type: str,
         entity_name: str,
+        source_owner: Optional[str] = None,
         parent_owner: Optional[str] = None,
     ) -> Optional[EntityReferenceList]:
         """
@@ -66,7 +68,8 @@ class OwnerResolver:
         Args:
             entity_type: Type of entity ("database", "databaseSchema", "table")
             entity_name: Name or FQN of the entity
-            parent_owner: Owner inherited from parent entity
+            source_owner: Owner from original data source/database system (from includeOwners)
+            parent_owner: Owner inherited from parent entity (for inheritance)
 
         Returns:
             EntityReferenceList with resolved owner, or None
@@ -76,7 +79,7 @@ class OwnerResolver:
 
         try:
             logger.debug(
-                f"Resolving owner for {entity_type} '{entity_name}', parent_owner: {parent_owner}"
+                f"Resolving owner for {entity_type} '{entity_name}', source_owner: {source_owner}, parent_owner: {parent_owner}"
             )
             logger.debug(f"Full config: {self.config}")
             logger.debug(f"Owner priority: {self.owner_priority}")
@@ -89,12 +92,12 @@ class OwnerResolver:
                     # Try to get owner from current level configuration
                     owner_ref = self._resolve_from_rule(entity_type, entity_name)
                     
-                elif priority == "source" and self.enable_inheritance and parent_owner:
-                    # Try inherited parent owner
-                    owner_ref = self._get_owner_refs(parent_owner)
+                elif priority == "source" and source_owner:
+                    # Try owner from original data source/database system
+                    owner_ref = self._get_owner_refs(source_owner)
                     if owner_ref:
                         logger.debug(
-                            f"Using inherited owner for '{entity_name}': {parent_owner}"
+                            f"Using source owner for '{entity_name}': {source_owner}"
                         )
                         
                 elif priority == "default":
@@ -109,6 +112,15 @@ class OwnerResolver:
                 
                 # Return first successful resolution
                 if owner_ref:
+                    return owner_ref
+            
+            # If no owner found and inheritance is enabled, try parent owner
+            if self.enable_inheritance and parent_owner:
+                owner_ref = self._get_owner_refs(parent_owner)
+                if owner_ref:
+                    logger.debug(
+                        f"Using inherited parent owner for '{entity_name}': {parent_owner}"
+                    )
                     return owner_ref
 
         except Exception as exc:
@@ -245,6 +257,7 @@ def get_owner_from_config(
     owner_config: Optional[Union[str, Dict]],
     entity_type: str,
     entity_name: str,
+    source_owner: Optional[str] = None,
     parent_owner: Optional[str] = None,
 ) -> Optional[EntityReferenceList]:
     """
@@ -255,31 +268,32 @@ def get_owner_from_config(
         owner_config: Owner configuration (string for simple mode, dict for hierarchical mode)
         entity_type: Type of entity ("database", "databaseSchema", "table")
         entity_name: Name or FQN of the entity
-        parent_owner: Owner inherited from parent entity
+        source_owner: Owner from original data source/database system (from includeOwners)
+        parent_owner: Owner inherited from parent entity (for inheritance)
 
     Returns:
         EntityReferenceList with resolved owner, or None
     """
     logger.debug(
-        f"get_owner_from_config called: entity_type={entity_type}, entity_name={entity_name}, owner_config type={type(owner_config)}"
+        f"get_owner_from_config called: entity_type={entity_type}, entity_name={entity_name}, source_owner={source_owner}, owner_config type={type(owner_config)}"
     )
 
     # Handle simple string mode (single owner for all entities)
     if isinstance(owner_config, str):
         resolver = OwnerResolver(metadata, {"default": owner_config})
-        return resolver.resolve_owner(entity_type, entity_name, parent_owner)
+        return resolver.resolve_owner(entity_type, entity_name, source_owner, parent_owner)
 
     # Handle new ownerConfig dict mode or Pydantic model
     if isinstance(owner_config, dict):
         resolver = OwnerResolver(metadata, owner_config)
-        return resolver.resolve_owner(entity_type, entity_name, parent_owner)
+        return resolver.resolve_owner(entity_type, entity_name, source_owner, parent_owner)
 
     # Handle Pydantic model (convert to dict)
     if hasattr(owner_config, "model_dump"):
         logger.debug("Converting Pydantic model to dict")
         config_dict = owner_config.model_dump(exclude_none=True)
         resolver = OwnerResolver(metadata, config_dict)
-        return resolver.resolve_owner(entity_type, entity_name, parent_owner)
+        return resolver.resolve_owner(entity_type, entity_name, source_owner, parent_owner)
 
     logger.debug(f"Unsupported owner_config type: {type(owner_config)}")
     return None

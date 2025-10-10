@@ -2,7 +2,7 @@
   "$id": "https://open-metadata.org/schema/type/ownerConfig.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Owner Configuration",
-  "description": "Configuration for assigning owners to ingested entities following topology hierarchy with inheritance support. Supports single or multiple owners per entity and configurable priority order.",
+  "description": "Configuration for assigning owners to ingested entities following topology hierarchy with inheritance support. Supports single or multiple owners per entity and configurable priority order (rule/source/default).",
   "javaType": "org.openmetadata.schema.type.OwnerConfig",
   "type": "object",
   "properties": {
@@ -165,7 +165,7 @@
       "default": true
     },
     "ownerPriority": {
-      "description": "Configure the priority order for owner resolution. Available options: 'rule' (configured rules), 'source' (inherited from parent), 'default' (default owner). Default order: ['rule', 'source', 'default']",
+      "description": "Configure the priority order for owner resolution. Available options: 'rule' (ownerConfig rules), 'source' (from database system via includeOwners), 'default' (default owner). Default order: ['rule', 'source', 'default']. Note: 'source' requires includeOwners=true in the ingestion config.",
       "type": "array",
       "items": {
         "type": "string",
@@ -177,8 +177,8 @@
       "default": ["rule", "source", "default"],
       "examples": [
         ["rule", "source", "default"],
-        ["rule", "default"],
-        ["source", "rule", "default"]
+        ["source", "rule", "default"],
+        ["rule", "default"]
       ]
     }
   },
@@ -193,7 +193,8 @@
       "databaseSchema": "schema-owners",
       "table": "table-stewards",
       "enableInheritance": true,
-      "ownerPriority": ["rule", "source", "default"]
+      "ownerPriority": ["rule", "source", "default"],
+      "_comment": "With this config and includeOwners=true: first check ownerConfig rules, then database source owner, then default owner"
     },
     {
       "default": "data-team",

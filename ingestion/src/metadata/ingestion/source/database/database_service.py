@@ -619,6 +619,7 @@ class DatabaseServiceSource(
                     owner_config=self.source_config.ownerConfig,
                     entity_type="database",
                     entity_name=database_fqn,
+                    source_owner=None,  # Database level doesn't have source owner from includeOwners
                     parent_owner=None,  # Database is top level
                 )
                 if owner_ref:
@@ -635,6 +636,7 @@ class DatabaseServiceSource(
                         owner_config=self.source_config.ownerConfig,
                         entity_type="database",
                         entity_name=database_name,
+                        source_owner=None,
                         parent_owner=None,
                     )
                     if owner_ref:
@@ -684,6 +686,7 @@ class DatabaseServiceSource(
                     owner_config=self.source_config.ownerConfig,
                     entity_type="databaseSchema",
                     entity_name=schema_fqn,  # Use FQN for matching
+                    source_owner=None,  # Schema level doesn't have source owner from includeOwners
                     parent_owner=parent_owner,
                 )
                 if owner_ref:
@@ -696,6 +699,7 @@ class DatabaseServiceSource(
                         owner_config=self.source_config.ownerConfig,
                         entity_type="databaseSchema",
                         entity_name=schema_name,
+                        source_owner=None,
                         parent_owner=parent_owner,
                     )
                     if owner_ref:
@@ -710,11 +714,15 @@ class DatabaseServiceSource(
     @calculate_execution_time()
     def get_owner_ref(self, table_name: str) -> Optional[EntityReferenceList]:
         """
-        Get owner for table entity using ownerConfig.
+        Get owner for table entity using configurable priority order.
 
-        Resolution order:
-        1. ownerConfig (with topology-based configuration and inheritance)
-        2. Source system owner (if includeOwners is enabled)
+        Resolution order (configurable via ownerPriority):
+        - rule: ownerConfig configuration (FQN > name match)
+        - source: Owner from database system (requires includeOwners=true)
+        - default: Default owner from ownerConfig
+        - inheritance: Can inherit from parent schema (controlled by enableInheritance)
+
+        Default priority: ["rule", "source", "default"]
 
         Args:
             table_name: Name of the table
@@ -736,20 +744,39 @@ class DatabaseServiceSource(
             # Build FQN for more precise matching
             table_fqn = f"{self.context.get().database}.{self.context.get().database_schema}.{table_name}"
 
-            # Priority 1: Use ownerConfig if configured
+            # Get owner from source system (if includeOwners enabled)
+            source_owner = None
+            if self.source_config.includeOwners and hasattr(
+                self.inspector, "get_table_owner"
+            ):
+                try:
+                    source_owner = self.inspector.get_table_owner(
+                        connection=self.connection,  # pylint: disable=no-member
+                        table_name=table_name,
+                        schema=self.context.get().database_schema,
+                    )
+                    if source_owner:
+                        logger.debug(f"Found source owner for table '{table_name}': {source_owner}")
+                except Exception as exc:
+                    logger.debug(f"Failed to get source owner: {exc}")
+
+            # Use ownerConfig with configurable priority
             if (
                 hasattr(self.source_config, "ownerConfig")
                 and self.source_config.ownerConfig
             ):
                 logger.debug(
-                    f"Trying ownerConfig for table '{table_name}', FQN: '{table_fqn}'"
+                    f"Trying ownerConfig for table '{table_name}', FQN: '{table_fqn}', source_owner: {source_owner}"
                 )
                 logger.debug(f"Owner config: {self.source_config.ownerConfig}")
+                
+                # Try FQN match first
                 owner_ref = get_owner_from_config(
                     metadata=self.metadata,
                     owner_config=self.source_config.ownerConfig,
                     entity_type="table",
                     entity_name=table_fqn,  # Use FQN for matching
+                    source_owner=source_owner,  # Pass source owner from database
                     parent_owner=parent_owner,
                 )
                 if owner_ref:
@@ -766,27 +793,25 @@ class DatabaseServiceSource(
                         owner_config=self.source_config.ownerConfig,
                         entity_type="table",
                         entity_name=table_name,
+                        source_owner=source_owner,
                         parent_owner=parent_owner,
                     )
                     if owner_ref:
                         logger.debug(f"Found owner from simple name match: {owner_ref}")
                         return owner_ref
 
-                logger.debug(f"No owner found for table '{table_name}'")
-
-            # Priority 2: Extract owner from source system (if includeOwners enabled)
-            if self.source_config.includeOwners and hasattr(
-                self.inspector, "get_table_owner"
-            ):
-                owner_name = self.inspector.get_table_owner(
-                    connection=self.connection,  # pylint: disable=no-member
-                    table_name=table_name,
-                    schema=self.context.get().database_schema,
-                )
+                logger.debug(f"No owner found from ownerConfig for table '{table_name}'")
+            
+            # Fallback: If ownerConfig is not configured but includeOwners is enabled
+            # use source owner directly
+            elif source_owner:
+                logger.debug(f"Using source owner directly (no ownerConfig): {source_owner}")
                 owner_ref = self.metadata.get_reference_by_name(
-                    name=owner_name, is_owner=True
+                    name=source_owner, is_owner=True
                 )
-                return owner_ref
+                if owner_ref:
+                    return owner_ref
+
         except Exception as exc:
             logger.debug(traceback.format_exc())
             logger.warning(f"Error processing owner for table {table_name}: {exc}")

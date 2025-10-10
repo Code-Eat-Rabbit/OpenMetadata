@@ -141,9 +141,12 @@ class TestOwnerResolver(unittest.TestCase):
 
         resolver = OwnerResolver(self.mock_metadata, config)
 
-        # Table should inherit from schema owner
+        # Table should inherit from schema owner when no other owner is found
         result = resolver.resolve_owner(
-            entity_type="table", entity_name="test_table", parent_owner="schema-team"
+            entity_type="table", 
+            entity_name="test_table", 
+            source_owner=None,
+            parent_owner="schema-team"
         )
         self.assertIsNotNone(result)
         self.mock_metadata.get_reference_by_name.assert_called_with(
@@ -160,7 +163,10 @@ class TestOwnerResolver(unittest.TestCase):
 
         # Table should NOT inherit, should use default
         result = resolver.resolve_owner(
-            entity_type="table", entity_name="test_table", parent_owner="schema-team"
+            entity_type="table", 
+            entity_name="test_table", 
+            source_owner=None,
+            parent_owner="schema-team"
         )
         self.assertIsNotNone(result)
         # Should use default, not parent
@@ -181,12 +187,15 @@ class TestOwnerResolver(unittest.TestCase):
 
         resolver = OwnerResolver(self.mock_metadata, config)
 
-        # Specific configuration should have highest priority
+        # Rule configuration should have highest priority
         result = resolver.resolve_owner(
-            entity_type="table", entity_name="orders", parent_owner="parent-team"
+            entity_type="table", 
+            entity_name="orders", 
+            source_owner="source-team",  # This should be ignored because rule has priority
+            parent_owner="parent-team"
         )
         self.assertIsNotNone(result)
-        # Should use specific, not parent or default
+        # Should use rule (specific), not source or default
         self.mock_metadata.get_reference_by_name.assert_called_with(
             name="specific-team", is_owner=True
         )
@@ -246,6 +255,8 @@ class TestGetOwnerFromConfig(unittest.TestCase):
             owner_config="data-team",
             entity_type="table",
             entity_name="test_table",
+            source_owner=None,
+            parent_owner=None,
         )
 
         self.assertIsNotNone(result)
@@ -263,6 +274,8 @@ class TestGetOwnerFromConfig(unittest.TestCase):
             owner_config=config,
             entity_type="table",
             entity_name="test_table",
+            source_owner=None,
+            parent_owner=None,
         )
 
         self.assertIsNotNone(result)
@@ -277,9 +290,34 @@ class TestGetOwnerFromConfig(unittest.TestCase):
             owner_config=None,
             entity_type="table",
             entity_name="test_table",
+            source_owner=None,
+            parent_owner=None,
         )
 
         self.assertIsNone(result)
+    
+    def test_with_source_owner(self):
+        """Test with source owner from database system"""
+        config = {
+            "default": "default-team",
+            "ownerPriority": ["source", "default"],  # Source first
+        }
+        self.mock_metadata.get_reference_by_name.return_value = self.mock_owner_list
+
+        result = get_owner_from_config(
+            metadata=self.mock_metadata,
+            owner_config=config,
+            entity_type="table",
+            entity_name="test_table",
+            source_owner="db-owner",  # From includeOwners
+            parent_owner=None,
+        )
+
+        self.assertIsNotNone(result)
+        # Should use source owner (from database)
+        self.mock_metadata.get_reference_by_name.assert_called_with(
+            name="db-owner", is_owner=True
+        )
 
 
     def test_multiple_owners(self):
@@ -308,8 +346,8 @@ class TestGetOwnerFromConfig(unittest.TestCase):
         self.assertEqual(result.root[0].name, "sales-team")
         self.assertEqual(result.root[1].name, "finance-team")
 
-    def test_custom_priority_order(self):
-        """Test custom priority order configuration"""
+    def test_source_priority_over_rule(self):
+        """Test that source owner (from database) can have priority over rule"""
         # Priority: source > rule > default (source first!)
         config = {
             "default": "default-team",
@@ -322,14 +360,17 @@ class TestGetOwnerFromConfig(unittest.TestCase):
 
         resolver = OwnerResolver(self.mock_metadata, config)
 
-        # With custom priority, source (parent) should win over rule
+        # With custom priority, source (from database) should win over rule
         result = resolver.resolve_owner(
-            entity_type="table", entity_name="orders", parent_owner="parent-team"
+            entity_type="table", 
+            entity_name="orders", 
+            source_owner="db-source-team",  # From includeOwners
+            parent_owner="parent-team"
         )
         self.assertIsNotNone(result)
-        # Should use parent (source), not rule
+        # Should use source (from database), not rule
         self.mock_metadata.get_reference_by_name.assert_called_with(
-            name="parent-team", is_owner=True
+            name="db-source-team", is_owner=True
         )
 
     def test_fqn_priority_over_simple_name(self):
@@ -356,28 +397,58 @@ class TestGetOwnerFromConfig(unittest.TestCase):
             name="prod-team", is_owner=True
         )
 
-    def test_priority_without_inheritance(self):
-        """Test priority order when inheritance is disabled"""
+    def test_source_and_inheritance(self):
+        """Test that source (database owner) and inheritance (parent owner) are independent"""
         config = {
             "default": "default-team",
-            "enableInheritance": False,
-            "table": {"orders": "rule-team"},
-            "ownerPriority": ["source", "rule", "default"],  # source first but inheritance disabled
+            "enableInheritance": True,
+            "table": {},  # No rule
+            "ownerPriority": ["rule", "source", "default"],
         }
 
         self.mock_metadata.get_reference_by_name.return_value = self.mock_owner_list
 
         resolver = OwnerResolver(self.mock_metadata, config)
 
-        # Even with source priority, inheritance is disabled, so should use rule
+        # No rule, source owner should be used
         result = resolver.resolve_owner(
-            entity_type="table", entity_name="orders", parent_owner="parent-team"
+            entity_type="table", 
+            entity_name="orders", 
+            source_owner="db-owner",  # From includeOwners
+            parent_owner="parent-team"  # For inheritance
         )
         self.assertIsNotNone(result)
-        # Should skip source (disabled) and use rule
+        # Should use source (from database), not parent or default
         self.mock_metadata.get_reference_by_name.assert_called_with(
-            name="rule-team", is_owner=True
+            name="db-owner", is_owner=True
         )
+    
+    def test_inheritance_as_fallback(self):
+        """Test that inheritance works as fallback when no owner is found from priority"""
+        config = {
+            "default": "default-team",
+            "enableInheritance": True,
+            "table": {},  # No rule
+            "ownerPriority": ["rule", "source", "default"],
+        }
+
+        # First call (parent) succeeds, others return None
+        self.mock_metadata.get_reference_by_name.side_effect = [
+            None,  # default-team lookup fails
+            self.mock_owner_list,  # parent-team succeeds
+        ]
+
+        resolver = OwnerResolver(self.mock_metadata, config)
+
+        # No rule, no source, default fails -> should fall back to inheritance
+        result = resolver.resolve_owner(
+            entity_type="table", 
+            entity_name="orders", 
+            source_owner=None,  # No source owner
+            parent_owner="parent-team"  # Should be used as fallback
+        )
+        self.assertIsNotNone(result)
+        # Should eventually use parent as fallback
 
 
 if __name__ == "__main__":
