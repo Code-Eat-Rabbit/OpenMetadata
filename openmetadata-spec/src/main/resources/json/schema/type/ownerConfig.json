@@ -16,7 +16,7 @@
       "type": "string"
     },
     "database": {
-      "description": "Owner for database entities. Can be a single owner or a map of database names to owners",
+      "description": "Owner for database entities. Can be a single owner or a map of database names to owner(s)",
       "oneOf": [
         {
           "type": "string",
@@ -24,19 +24,33 @@
         },
         {
           "type": "object",
-          "description": "Map of database names to their owners",
+          "description": "Map of database names to their owner(s)",
           "additionalProperties": {
-            "type": "string"
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Single owner"
+              },
+              {
+                "type": "array",
+                "description": "Multiple owners",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              }
+            ]
           },
           "examples": [{
             "sales_db": "sales-team",
-            "analytics_db": "analytics-team"
+            "analytics_db": "analytics-team",
+            "shared_db": ["data-team", "analytics-team"]
           }]
         }
       ]
     },
     "databaseSchema": {
-      "description": "Owner for schema entities. Can be a single owner or a map of schema FQNs to owners",
+      "description": "Owner for schema entities. Can be a single owner or a map of schema FQNs to owner(s)",
       "oneOf": [
         {
           "type": "string",
@@ -44,19 +58,33 @@
         },
         {
           "type": "object",
-          "description": "Map of schema names/FQNs to their owners",
+          "description": "Map of schema names/FQNs to their owner(s)",
           "additionalProperties": {
-            "type": "string"
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Single owner"
+              },
+              {
+                "type": "array",
+                "description": "Multiple owners",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              }
+            ]
           },
           "examples": [{
             "public": "public-schema-team",
-            "analytics_db.analytics_schema": "analytics-team"
+            "analytics_db.analytics_schema": "analytics-team",
+            "shared_schema": ["data-team", "analytics-team"]
           }]
         }
       ]
     },
     "table": {
-      "description": "Owner for table entities. Can be a single owner or a map of table FQNs to owners",
+      "description": "Owner for table entities. Can be a single owner or a map of table FQNs to owner(s)",
       "oneOf": [
         {
           "type": "string",
@@ -64,13 +92,27 @@
         },
         {
           "type": "object",
-          "description": "Map of table names/FQNs to their owners",
+          "description": "Map of table names/FQNs to their owner(s)",
           "additionalProperties": {
-            "type": "string"
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Single owner"
+              },
+              {
+                "type": "array",
+                "description": "Multiple owners",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              }
+            ]
           },
           "examples": [{
             "customers": "customer-data-team",
-            "sales_db.public.orders": "sales-team"
+            "sales_db.public.orders": "sales-team",
+            "shared_orders": ["sales-team", "finance-team"]
           }]
         }
       ]
@@ -102,6 +144,15 @@
       "databaseSchema": {
         "public": "public-team",
         "analytics_db.reporting": "reporting-team"
+      },
+      "enableInheritance": true
+    },
+    {
+      "default": "data-team",
+      "table": {
+        "customers": "customer-team",
+        "orders": ["sales-team", "finance-team"],
+        "sales_db.public.shared_data": ["sales-team", "analytics-team", "audit-team"]
       },
       "enableInheritance": true
     }
