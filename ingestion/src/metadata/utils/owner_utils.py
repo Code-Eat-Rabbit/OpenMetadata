@@ -7,8 +7,9 @@ configuration following the topology structure (service -> database -> schema ->
 """
 
 import traceback
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 
+from metadata.generated.schema.type.entityReference import EntityReference
 from metadata.generated.schema.type.entityReferenceList import EntityReferenceList
 from metadata.ingestion.ometa.ometa_api import OpenMetadata
 from metadata.utils.logger import ingestion_logger
@@ -22,19 +23,21 @@ class OwnerResolver:
 
     Configuration structure:
     {
-        "default": "fallback-owner",  # Default owner for all entities
-        "service": "service-owner",   # Optional
-        "database": "db-owner" | {"db1": "owner1", "db2": "owner2"},
-        "schema": "schema-owner" | {"schema1": "owner1"},
-        "table": "table-owner" | {"table1": "owner1"},
-        "enableInheritance": true  # Default true
+        "default": "fallback-owner" | ["owner1", "owner2"],  # Default owner(s) for all entities
+        "service": "service-owner" | ["owner1", "owner2"],   # Optional
+        "database": "db-owner" | {"db1": "owner1" | ["owner1", "owner2"]},
+        "databaseSchema": "schema-owner" | {"schema1": "owner1" | ["owner1", "owner2"]},
+        "table": "table-owner" | {"table1": "owner1" | ["owner1", "owner2"]},
+        "enableInheritance": true,  # Default true
+        "ownerPriority": ["rule", "source", "default"]  # Configurable priority order
     }
 
-    Resolution order (highest to lowest priority):
-    1. Current level custom configuration (exact FQN or name match)
-    2. Current level general configuration (string format)
-    3. Inherited parent owner (if enableInheritance=true)
-    4. Default configuration
+    Resolution order (configurable via ownerPriority):
+    - "rule": Current level configuration (FQN > name match)
+    - "source": Inherited parent owner (if enableInheritance=true)
+    - "default": Default configuration
+
+    Default priority order: ["rule", "source", "default"]
     """
 
     def __init__(self, metadata: OpenMetadata, owner_config: Optional[Dict] = None):
@@ -48,6 +51,8 @@ class OwnerResolver:
         self.metadata = metadata
         self.config = owner_config or {}
         self.enable_inheritance = self.config.get("enableInheritance", True)
+        # Default priority order: rule -> source -> default
+        self.owner_priority = self.config.get("ownerPriority", ["rule", "source", "default"])
 
     def resolve_owner(
         self,
@@ -59,7 +64,7 @@ class OwnerResolver:
         Resolve owner for an entity based on configuration
 
         Args:
-            entity_type: Type of entity ("database", "schema", "table")
+            entity_type: Type of entity ("database", "databaseSchema", "table")
             entity_name: Name or FQN of the entity
             parent_owner: Owner inherited from parent entity
 
@@ -74,61 +79,36 @@ class OwnerResolver:
                 f"Resolving owner for {entity_type} '{entity_name}', parent_owner: {parent_owner}"
             )
             logger.debug(f"Full config: {self.config}")
+            logger.debug(f"Owner priority: {self.owner_priority}")
 
-            # 1. Try to get owner from current level configuration
-            level_config = self.config.get(entity_type)
-            logger.debug(f"Level config for '{entity_type}': {level_config}")
-
-            if level_config:
-                # If it's a dict, try exact matching
-                if isinstance(level_config, dict):
-                    # First try full name matching
-                    if entity_name in level_config:
-                        owner_name = level_config[entity_name]
-                        owner_ref = self._get_owner_ref(owner_name)
-                        if owner_ref:
-                            logger.debug(
-                                f"Using specific {entity_type} owner for '{entity_name}': {owner_name}"
-                            )
-                            return owner_ref
-
-                    # Try matching with only the last part of the name (e.g., "sales_db.public.orders" matches "orders")
-                    simple_name = entity_name.split(".")[-1]
-                    if simple_name != entity_name and simple_name in level_config:
-                        owner_name = level_config[simple_name]
-                        owner_ref = self._get_owner_ref(owner_name)
-                        if owner_ref:
-                            logger.debug(
-                                f"Using specific {entity_type} owner for '{simple_name}': {owner_name}"
-                            )
-                            return owner_ref
-
-                # If it's a string, use it directly
-                elif isinstance(level_config, str):
-                    owner_ref = self._get_owner_ref(level_config)
+            # Try each priority level in configured order
+            for priority in self.owner_priority:
+                owner_ref = None
+                
+                if priority == "rule":
+                    # Try to get owner from current level configuration
+                    owner_ref = self._resolve_from_rule(entity_type, entity_name)
+                    
+                elif priority == "source" and self.enable_inheritance and parent_owner:
+                    # Try inherited parent owner
+                    owner_ref = self._get_owner_refs(parent_owner)
                     if owner_ref:
                         logger.debug(
-                            f"Using {entity_type} level owner for '{entity_name}': {level_config}"
+                            f"Using inherited owner for '{entity_name}': {parent_owner}"
                         )
-                        return owner_ref
-
-            # 2. If inheritance is enabled, use parent owner
-            if self.enable_inheritance and parent_owner:
-                owner_ref = self._get_owner_ref(parent_owner)
+                        
+                elif priority == "default":
+                    # Try default owner
+                    default_owner = self.config.get("default")
+                    if default_owner:
+                        owner_ref = self._get_owner_refs(default_owner)
+                        if owner_ref:
+                            logger.debug(
+                                f"Using default owner for '{entity_name}': {default_owner}"
+                            )
+                
+                # Return first successful resolution
                 if owner_ref:
-                    logger.debug(
-                        f"Using inherited owner for '{entity_name}': {parent_owner}"
-                    )
-                    return owner_ref
-
-            # 3. Use default owner
-            default_owner = self.config.get("default")
-            if default_owner:
-                owner_ref = self._get_owner_ref(default_owner)
-                if owner_ref:
-                    logger.debug(
-                        f"Using default owner for '{entity_name}': {default_owner}"
-                    )
                     return owner_ref
 
         except Exception as exc:
@@ -139,33 +119,117 @@ class OwnerResolver:
 
         return None
 
-    def _get_owner_ref(self, owner_name: str) -> Optional[EntityReferenceList]:
+    def _resolve_from_rule(
+        self, entity_type: str, entity_name: str
+    ) -> Optional[EntityReferenceList]:
         """
-        Get owner reference from OpenMetadata
+        Resolve owner from rule configuration.
+        Priority: FQN match > simple name match > general level config
+        
+        Args:
+            entity_type: Type of entity
+            entity_name: Name or FQN of the entity
+            
+        Returns:
+            EntityReferenceList or None
+        """
+        level_config = self.config.get(entity_type)
+        logger.debug(f"Level config for '{entity_type}': {level_config}")
+        
+        if not level_config:
+            return None
+            
+        # If it's a dict, try exact matching with FQN first, then simple name
+        if isinstance(level_config, dict):
+            # Priority 1: Try exact FQN match
+            if entity_name in level_config:
+                owner_value = level_config[entity_name]
+                owner_ref = self._get_owner_refs(owner_value)
+                if owner_ref:
+                    logger.debug(
+                        f"Using FQN-matched {entity_type} owner for '{entity_name}': {owner_value}"
+                    )
+                    return owner_ref
+            
+            # Priority 2: Try simple name match (last part of FQN)
+            simple_name = entity_name.split(".")[-1]
+            if simple_name != entity_name and simple_name in level_config:
+                owner_value = level_config[simple_name]
+                owner_ref = self._get_owner_refs(owner_value)
+                if owner_ref:
+                    logger.debug(
+                        f"Using name-matched {entity_type} owner for '{simple_name}': {owner_value}"
+                    )
+                    return owner_ref
+                    
+        # If it's a string or list, use it directly as general level config
+        elif isinstance(level_config, (str, list)):
+            owner_ref = self._get_owner_refs(level_config)
+            if owner_ref:
+                logger.debug(
+                    f"Using {entity_type} level owner for '{entity_name}': {level_config}"
+                )
+                return owner_ref
+                
+        return None
+    
+    def _get_owner_refs(
+        self, owner_value: Union[str, List[str]]
+    ) -> Optional[EntityReferenceList]:
+        """
+        Get owner references from owner value (supports single or multiple owners)
+        
+        Args:
+            owner_value: Owner name/email or list of owner names/emails
+            
+        Returns:
+            EntityReferenceList or None
+        """
+        if isinstance(owner_value, list):
+            # Handle multiple owners
+            owner_refs = []
+            for owner_name in owner_value:
+                owner_ref = self._get_single_owner_ref(owner_name)
+                if owner_ref:
+                    owner_refs.append(owner_ref)
+            
+            if owner_refs:
+                return EntityReferenceList(root=owner_refs)
+            return None
+        else:
+            # Handle single owner
+            owner_ref = self._get_single_owner_ref(owner_value)
+            if owner_ref:
+                return EntityReferenceList(root=[owner_ref])
+            return None
+    
+    def _get_single_owner_ref(self, owner_name: str) -> Optional[EntityReference]:
+        """
+        Get single owner reference from OpenMetadata
 
         Args:
             owner_name: User or team name/email
 
         Returns:
-            EntityReferenceList or None if not found
+            EntityReference or None if not found
         """
         try:
             if not owner_name:
                 return None
 
             # Try to get owner by name (handles both users and teams)
-            owner_ref = self.metadata.get_reference_by_name(
+            owner_ref_list = self.metadata.get_reference_by_name(
                 name=owner_name, is_owner=True
             )
 
-            if owner_ref:
-                return owner_ref
+            if owner_ref_list and owner_ref_list.root:
+                return owner_ref_list.root[0]
 
             # Try by email if name lookup failed and it looks like an email
             if "@" in owner_name:
-                owner_ref = self.metadata.get_reference_by_email(owner_name)
-                if owner_ref:
-                    return owner_ref
+                owner_ref_list = self.metadata.get_reference_by_email(owner_name)
+                if owner_ref_list and owner_ref_list.root:
+                    return owner_ref_list.root[0]
 
             logger.warning(f"Could not find owner: {owner_name}")
 

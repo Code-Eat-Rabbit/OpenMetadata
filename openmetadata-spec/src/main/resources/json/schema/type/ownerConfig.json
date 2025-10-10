@@ -2,75 +2,159 @@
   "$id": "https://open-metadata.org/schema/type/ownerConfig.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Owner Configuration",
-  "description": "Configuration for assigning owners to ingested entities following topology hierarchy with inheritance support",
+  "description": "Configuration for assigning owners to ingested entities following topology hierarchy with inheritance support. Supports single or multiple owners per entity and configurable priority order.",
   "javaType": "org.openmetadata.schema.type.OwnerConfig",
   "type": "object",
   "properties": {
     "default": {
-      "description": "Default owner applied to all entities when no specific owner is configured (user or team name/email)",
-      "type": "string",
-      "examples": ["data-engineering-team", "admin@company.com"]
+      "description": "Default owner(s) applied to all entities when no specific owner is configured. Can be a single owner or a list of owners (user or team names/emails)",
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Single default owner"
+        },
+        {
+          "type": "array",
+          "description": "Multiple default owners",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
+      ],
+      "examples": ["data-engineering-team", "admin@company.com", ["team1", "team2"]]
     },
     "service": {
-      "description": "Owner for the service level",
-      "type": "string"
+      "description": "Owner(s) for the service level. Can be a single owner or a list of owners",
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Single service owner"
+        },
+        {
+          "type": "array",
+          "description": "Multiple service owners",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
+      ]
     },
     "database": {
-      "description": "Owner for database entities. Can be a single owner or a map of database names to owners",
+      "description": "Owner(s) for database entities. Can be a single owner, a list of owners, or a map of database FQNs/names to their owner(s)",
       "oneOf": [
         {
           "type": "string",
           "description": "Single owner for all databases"
         },
         {
-          "type": "object",
-          "description": "Map of database names to their owners",
-          "additionalProperties": {
+          "type": "array",
+          "description": "Multiple owners for all databases",
+          "items": {
             "type": "string"
+          },
+          "minItems": 1
+        },
+        {
+          "type": "object",
+          "description": "Map of database FQNs/names to their owner(s). FQN matches are prioritized over simple name matches.",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              }
+            ]
           },
           "examples": [{
             "sales_db": "sales-team",
-            "analytics_db": "analytics-team"
+            "analytics_db": ["analytics-team", "data-science-team"],
+            "service.production_db": "prod-team"
           }]
         }
       ]
     },
     "databaseSchema": {
-      "description": "Owner for schema entities. Can be a single owner or a map of schema FQNs to owners",
+      "description": "Owner(s) for schema entities. Can be a single owner, a list of owners, or a map of schema FQNs/names to their owner(s). FQN matches are prioritized over simple name matches.",
       "oneOf": [
         {
           "type": "string",
           "description": "Single owner for all schemas"
         },
         {
-          "type": "object",
-          "description": "Map of schema names/FQNs to their owners",
-          "additionalProperties": {
+          "type": "array",
+          "description": "Multiple owners for all schemas",
+          "items": {
             "type": "string"
+          },
+          "minItems": 1
+        },
+        {
+          "type": "object",
+          "description": "Map of schema FQNs/names to their owner(s). FQN format: 'database.schema'",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              }
+            ]
           },
           "examples": [{
             "public": "public-schema-team",
-            "analytics_db.analytics_schema": "analytics-team"
+            "analytics_db.analytics_schema": ["analytics-team", "reporting-team"]
           }]
         }
       ]
     },
     "table": {
-      "description": "Owner for table entities. Can be a single owner or a map of table FQNs to owners",
+      "description": "Owner(s) for table entities. Can be a single owner, a list of owners, or a map of table FQNs/names to their owner(s). FQN matches are prioritized over simple name matches.",
       "oneOf": [
         {
           "type": "string",
           "description": "Single owner for all tables"
         },
         {
-          "type": "object",
-          "description": "Map of table names/FQNs to their owners",
-          "additionalProperties": {
+          "type": "array",
+          "description": "Multiple owners for all tables",
+          "items": {
             "type": "string"
+          },
+          "minItems": 1
+        },
+        {
+          "type": "object",
+          "description": "Map of table FQNs/names to their owner(s). FQN format: 'database.schema.table'",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              }
+            ]
           },
           "examples": [{
             "customers": "customer-data-team",
-            "sales_db.public.orders": "sales-team"
+            "sales_db.public.orders": ["sales-team", "finance-team"]
           }]
         }
       ]
@@ -79,6 +163,23 @@
       "description": "Enable child entities to inherit owner from parent entities when they don't have a specific owner configured",
       "type": "boolean",
       "default": true
+    },
+    "ownerPriority": {
+      "description": "Configure the priority order for owner resolution. Available options: 'rule' (configured rules), 'source' (inherited from parent), 'default' (default owner). Default order: ['rule', 'source', 'default']",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["rule", "source", "default"]
+      },
+      "uniqueItems": true,
+      "minItems": 1,
+      "maxItems": 3,
+      "default": ["rule", "source", "default"],
+      "examples": [
+        ["rule", "source", "default"],
+        ["rule", "default"],
+        ["source", "rule", "default"]
+      ]
     }
   },
   "additionalProperties": false,
@@ -87,23 +188,26 @@
       "default": "data-platform-team"
     },
     {
-      "default": "data-team",
+      "default": ["data-team", "platform-team"],
       "database": "database-admins",
       "databaseSchema": "schema-owners",
       "table": "table-stewards",
-      "enableInheritance": true
+      "enableInheritance": true,
+      "ownerPriority": ["rule", "source", "default"]
     },
     {
       "default": "data-team",
       "database": {
         "sales_db": "sales-team",
-        "analytics_db": "analytics-team"
+        "analytics_db": ["analytics-team", "data-science-team"],
+        "service.production_db": "prod-team"
       },
       "databaseSchema": {
         "public": "public-team",
-        "analytics_db.reporting": "reporting-team"
+        "analytics_db.reporting": ["reporting-team", "analytics-team"]
       },
-      "enableInheritance": true
+      "enableInheritance": true,
+      "ownerPriority": ["rule", "default"]
     }
   ]
 }

@@ -587,7 +587,7 @@ class DatabaseServiceSource(
         Get owner for database entity using ownerConfig.
 
         Resolution order:
-        1. ownerConfig (with topology-based configuration)
+        1. ownerConfig (with topology-based configuration, FQN match first)
 
         Args:
             database_name: Name of the database
@@ -601,15 +601,45 @@ class DatabaseServiceSource(
                 hasattr(self.source_config, "ownerConfig")
                 and self.source_config.ownerConfig
             ):
+                # Build FQN for more precise matching
+                database_fqn = fqn.build(
+                    self.metadata,
+                    entity_type=Database,
+                    service_name=self.context.get().database_service,
+                    database_name=database_name,
+                )
+                
+                logger.debug(
+                    f"Trying ownerConfig for database '{database_name}', FQN: '{database_fqn}'"
+                )
+                
+                # Try FQN match first
                 owner_ref = get_owner_from_config(
                     metadata=self.metadata,
                     owner_config=self.source_config.ownerConfig,
                     entity_type="database",
-                    entity_name=database_name,
+                    entity_name=database_fqn,
                     parent_owner=None,  # Database is top level
                 )
                 if owner_ref:
+                    logger.debug(f"Found owner from FQN match: {owner_ref}")
                     return owner_ref
+                
+                # Try simple name if FQN didn't match
+                if database_fqn != database_name:
+                    logger.debug(
+                        f"FQN match failed, trying simple name: '{database_name}'"
+                    )
+                    owner_ref = get_owner_from_config(
+                        metadata=self.metadata,
+                        owner_config=self.source_config.ownerConfig,
+                        entity_type="database",
+                        entity_name=database_name,
+                        parent_owner=None,
+                    )
+                    if owner_ref:
+                        logger.debug(f"Found owner from name match: {owner_ref}")
+                        return owner_ref
 
         except Exception as exc:
             logger.debug(traceback.format_exc())

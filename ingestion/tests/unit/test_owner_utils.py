@@ -91,12 +91,13 @@ class TestOwnerResolver(unittest.TestCase):
         )
 
     def test_fqn_matching(self):
-        """Test FQN matching for entities"""
+        """Test FQN matching for entities (FQN should be prioritized over simple name)"""
         config = {
             "default": "default-team",
             "table": {
                 "sales_db.public.orders": "sales-team",
                 "analytics_db.public.reports": "analytics-team",
+                "orders": "wrong-team",  # This should NOT match when FQN is provided
             },
         }
 
@@ -104,11 +105,12 @@ class TestOwnerResolver(unittest.TestCase):
 
         resolver = OwnerResolver(self.mock_metadata, config)
 
-        # Test FQN match
+        # Test FQN match - should use FQN match, not simple name match
         result = resolver.resolve_owner(
             entity_type="table", entity_name="sales_db.public.orders"
         )
         self.assertIsNotNone(result)
+        # Should match "sales-team" from FQN, not "wrong-team" from simple name
         self.mock_metadata.get_reference_by_name.assert_called_with(
             name="sales-team", is_owner=True
         )
@@ -167,11 +169,12 @@ class TestOwnerResolver(unittest.TestCase):
         )
 
     def test_priority_order(self):
-        """Test priority order: specific > level > inheritance > default"""
+        """Test priority order: rule > source > default (configurable)"""
         config = {
             "default": "default-team",
             "enableInheritance": True,
             "table": {"orders": "specific-team"},
+            "ownerPriority": ["rule", "source", "default"],
         }
 
         self.mock_metadata.get_reference_by_name.return_value = self.mock_owner_list
@@ -277,6 +280,104 @@ class TestGetOwnerFromConfig(unittest.TestCase):
         )
 
         self.assertIsNone(result)
+
+
+    def test_multiple_owners(self):
+        """Test multiple owners support"""
+        config = {
+            "default": ["team1", "team2"],
+            "table": {"orders": ["sales-team", "finance-team"]},
+        }
+
+        mock_owner1 = EntityReference(
+            id="owner1", type="team", name="sales-team", fullyQualifiedName="sales-team"
+        )
+        mock_owner2 = EntityReference(
+            id="owner2", type="team", name="finance-team", fullyQualifiedName="finance-team"
+        )
+        self.mock_metadata.get_reference_by_name.side_effect = [
+            EntityReferenceList(root=[mock_owner1]),
+            EntityReferenceList(root=[mock_owner2]),
+        ]
+
+        resolver = OwnerResolver(self.mock_metadata, config)
+
+        result = resolver.resolve_owner(entity_type="table", entity_name="orders")
+        self.assertIsNotNone(result)
+        self.assertEqual(len(result.root), 2)
+        self.assertEqual(result.root[0].name, "sales-team")
+        self.assertEqual(result.root[1].name, "finance-team")
+
+    def test_custom_priority_order(self):
+        """Test custom priority order configuration"""
+        # Priority: source > rule > default (source first!)
+        config = {
+            "default": "default-team",
+            "enableInheritance": True,
+            "table": {"orders": "rule-team"},
+            "ownerPriority": ["source", "rule", "default"],
+        }
+
+        self.mock_metadata.get_reference_by_name.return_value = self.mock_owner_list
+
+        resolver = OwnerResolver(self.mock_metadata, config)
+
+        # With custom priority, source (parent) should win over rule
+        result = resolver.resolve_owner(
+            entity_type="table", entity_name="orders", parent_owner="parent-team"
+        )
+        self.assertIsNotNone(result)
+        # Should use parent (source), not rule
+        self.mock_metadata.get_reference_by_name.assert_called_with(
+            name="parent-team", is_owner=True
+        )
+
+    def test_fqn_priority_over_simple_name(self):
+        """Test that FQN match has priority over simple name match"""
+        config = {
+            "default": "default-team",
+            "database": {
+                "service.production_db": "prod-team",  # FQN match
+                "production_db": "dev-team",  # Simple name match
+            },
+        }
+
+        self.mock_metadata.get_reference_by_name.return_value = self.mock_owner_list
+
+        resolver = OwnerResolver(self.mock_metadata, config)
+
+        # Test with FQN - should match FQN config
+        result = resolver.resolve_owner(
+            entity_type="database", entity_name="service.production_db"
+        )
+        self.assertIsNotNone(result)
+        # Should match "prod-team" from FQN, not "dev-team" from simple name
+        self.mock_metadata.get_reference_by_name.assert_called_with(
+            name="prod-team", is_owner=True
+        )
+
+    def test_priority_without_inheritance(self):
+        """Test priority order when inheritance is disabled"""
+        config = {
+            "default": "default-team",
+            "enableInheritance": False,
+            "table": {"orders": "rule-team"},
+            "ownerPriority": ["source", "rule", "default"],  # source first but inheritance disabled
+        }
+
+        self.mock_metadata.get_reference_by_name.return_value = self.mock_owner_list
+
+        resolver = OwnerResolver(self.mock_metadata, config)
+
+        # Even with source priority, inheritance is disabled, so should use rule
+        result = resolver.resolve_owner(
+            entity_type="table", entity_name="orders", parent_owner="parent-team"
+        )
+        self.assertIsNotNone(result)
+        # Should skip source (disabled) and use rule
+        self.mock_metadata.get_reference_by_name.assert_called_with(
+            name="rule-team", is_owner=True
+        )
 
 
 if __name__ == "__main__":
