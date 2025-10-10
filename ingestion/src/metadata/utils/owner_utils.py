@@ -25,7 +25,7 @@ class OwnerResolver:
         "default": "fallback-owner",  # Default owner for all entities
         "service": "service-owner",   # Optional
         "database": "db-owner" | {"db1": "owner1", "db2": "owner2"} | {"db3": ["owner1", "owner2"]},
-        "schema": "schema-owner" | {"schema1": "owner1"} | {"schema2": ["owner1", "owner2"]},
+        "databaseSchema": "schema-owner" | {"schema1": "owner1"} | {"schema2": ["owner1", "owner2"]},
         "table": "table-owner" | {"table1": "owner1"} | {"table2": ["owner1", "owner2"]},
         "enableInheritance": true  # Default true
     }
@@ -59,7 +59,7 @@ class OwnerResolver:
         Resolve owner for an entity based on configuration
 
         Args:
-            entity_type: Type of entity ("database", "schema", "table")
+            entity_type: Type of entity ("database", "databaseSchema", "table")
             entity_name: Name or FQN of the entity
             parent_owner: Owner inherited from parent entity
 
