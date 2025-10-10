@@ -588,7 +588,7 @@ class DatabaseServiceSource(
 
         Resolution order (three-tier priority):
         1. Rules: ownerConfig with rule-based configuration (exact match, level config, inheritance)
-        2. Source: Not applicable for database level
+        2. Source: Source system owner (if database supports owner metadata)
         3. Default: ownerConfig.default fallback
 
         Args:
@@ -613,7 +613,31 @@ class DatabaseServiceSource(
                 if owner_ref:
                     return owner_ref
 
-                # Priority 3: Default (if configured)
+            # Priority 2: Source system owner (if database inspector supports it)
+            # Note: Most databases don't expose database-level owner via SQLAlchemy
+            # but custom implementations may override this
+            if self.source_config.includeOwners and hasattr(
+                self.inspector, "get_database_owner"
+            ):
+                owner_name = self.inspector.get_database_owner(
+                    connection=self.connection,  # pylint: disable=no-member
+                    database_name=database_name,
+                )
+                if owner_name:
+                    logger.debug(
+                        f"Found owner from source system for database '{database_name}': {owner_name}"
+                    )
+                    owner_ref = self.metadata.get_reference_by_name(
+                        name=owner_name, is_owner=True
+                    )
+                    if owner_ref:
+                        return owner_ref
+
+            # Priority 3: Default (if configured)
+            if (
+                hasattr(self.source_config, "ownerConfig")
+                and self.source_config.ownerConfig
+            ):
                 owner_config_dict = (
                     self.source_config.ownerConfig.model_dump(exclude_none=True)
                     if hasattr(self.source_config.ownerConfig, "model_dump")
@@ -647,7 +671,7 @@ class DatabaseServiceSource(
 
         Resolution order (three-tier priority):
         1. Rules: ownerConfig with rule-based configuration (exact match, level config, inheritance)
-        2. Source: Not applicable for schema level
+        2. Source: Source system owner (if schema supports owner metadata)
         3. Default: ownerConfig.default fallback
 
         Args:
@@ -663,19 +687,30 @@ class DatabaseServiceSource(
             ):
                 # Get parent (database) owner for inheritance
                 parent_owner = None
-                database_entity = getattr(self.context.get(), "database_entity", None)
-                if database_entity:
-                    db_owners = database_entity.owners
-                    if db_owners and db_owners.root:
-                        # Support multiple parent owners
-                        parent_owner = (
-                            [owner.name for owner in db_owners.root]
-                            if len(db_owners.root) > 1
-                            else db_owners.root[0].name
-                        )
+                database_name = self.context.get().database
+                if database_name:
+                    # Fetch database entity from OpenMetadata to get its owners
+                    database_fqn = fqn.build(
+                        self.metadata,
+                        entity_type=Database,
+                        service_name=self.context.get().database_service,
+                        database_name=database_name,
+                    )
+                    database_entity = self.metadata.get_by_name(
+                        entity=Database, fqn=database_fqn, fields=["owners"]
+                    )
+                    if database_entity and database_entity.owners:
+                        db_owners = database_entity.owners.root
+                        if db_owners:
+                            # Support multiple parent owners
+                            parent_owner = (
+                                [owner.name for owner in db_owners]
+                                if len(db_owners) > 1
+                                else db_owners[0].name
+                            )
 
                 # Build FQN for precise matching (OwnerResolver will handle FQN priority internally)
-                schema_fqn = f"{self.context.get().database}.{schema_name}"
+                schema_fqn = f"{database_name}.{schema_name}"
 
                 # Priority 1: Rules (ownerConfig rule-based configuration)
                 # Single call - OwnerResolver handles FQN -> simple name fallback internally
@@ -689,7 +724,30 @@ class DatabaseServiceSource(
                 if owner_ref:
                     return owner_ref
 
-                # Priority 3: Default (if configured)
+            # Priority 2: Source system owner (if schema inspector supports it)
+            if self.source_config.includeOwners and hasattr(
+                self.inspector, "get_schema_owner"
+            ):
+                owner_name = self.inspector.get_schema_owner(
+                    connection=self.connection,  # pylint: disable=no-member
+                    schema_name=schema_name,
+                    database_name=self.context.get().database,
+                )
+                if owner_name:
+                    logger.debug(
+                        f"Found owner from source system for schema '{schema_name}': {owner_name}"
+                    )
+                    owner_ref = self.metadata.get_reference_by_name(
+                        name=owner_name, is_owner=True
+                    )
+                    if owner_ref:
+                        return owner_ref
+
+            # Priority 3: Default (if configured)
+            if (
+                hasattr(self.source_config, "ownerConfig")
+                and self.source_config.ownerConfig
+            ):
                 owner_config_dict = (
                     self.source_config.ownerConfig.model_dump(exclude_none=True)
                     if hasattr(self.source_config.ownerConfig, "model_dump")
@@ -726,7 +784,7 @@ class DatabaseServiceSource(
         3. Default: ownerConfig.default fallback
 
         Args:
-            table_name: Name of the table
+            table_name: Name of the table (can be simple name or FQN)
 
         Returns:
             EntityReferenceList with owner or None
@@ -734,21 +792,42 @@ class DatabaseServiceSource(
         try:
             # Get parent (schema) owner for inheritance
             parent_owner = None
-            database_schema_entity = getattr(
-                self.context.get(), "database_schema_entity", None
-            )
-            if database_schema_entity:
-                schema_owners = database_schema_entity.owners
-                if schema_owners and schema_owners.root:
-                    # Support multiple parent owners
-                    parent_owner = (
-                        [owner.name for owner in schema_owners.root]
-                        if len(schema_owners.root) > 1
-                        else schema_owners.root[0].name
-                    )
+            schema_name = self.context.get().database_schema
+            database_name = self.context.get().database
+            
+            if schema_name and database_name:
+                # Fetch schema entity from OpenMetadata to get its owners
+                schema_fqn = fqn.build(
+                    self.metadata,
+                    entity_type=DatabaseSchema,
+                    service_name=self.context.get().database_service,
+                    database_name=database_name,
+                    schema_name=schema_name,
+                )
+                database_schema_entity = self.metadata.get_by_name(
+                    entity=DatabaseSchema, fqn=schema_fqn, fields=["owners"]
+                )
+                if database_schema_entity and database_schema_entity.owners:
+                    schema_owners = database_schema_entity.owners.root
+                    if schema_owners:
+                        # Support multiple parent owners
+                        parent_owner = (
+                            [owner.name for owner in schema_owners]
+                            if len(schema_owners) > 1
+                            else schema_owners[0].name
+                        )
 
-            # Build FQN for precise matching (OwnerResolver will handle FQN priority internally)
-            table_fqn = f"{self.context.get().database}.{self.context.get().database_schema}.{table_name}"
+            # Detect if table_name is already FQN (contains dots)
+            # If it's already FQN, use it directly; otherwise build it
+            if "." in table_name:
+                # table_name is likely already FQN
+                table_fqn = table_name
+                # Extract simple name (last part)
+                simple_table_name = table_name.split(".")[-1]
+            else:
+                # table_name is simple name, build FQN
+                simple_table_name = table_name
+                table_fqn = f"{database_name}.{schema_name}.{table_name}"
 
             # Priority 1: Rules (ownerConfig rule-based configuration)
             if (
@@ -756,7 +835,7 @@ class DatabaseServiceSource(
                 and self.source_config.ownerConfig
             ):
                 logger.debug(
-                    f"Trying ownerConfig for table '{table_name}', FQN: '{table_fqn}'"
+                    f"Trying ownerConfig for table '{simple_table_name}', FQN: '{table_fqn}'"
                 )
                 logger.debug(f"Owner config: {self.source_config.ownerConfig}")
 
@@ -773,7 +852,7 @@ class DatabaseServiceSource(
                     return owner_ref
 
                 logger.debug(
-                    f"No rule-based owner match for table '{table_name}', checking source system"
+                    f"No rule-based owner match for table '{simple_table_name}', checking source system"
                 )
 
             # Priority 2: Source system owner (if includeOwners enabled)
@@ -782,12 +861,12 @@ class DatabaseServiceSource(
             ):
                 owner_name = self.inspector.get_table_owner(
                     connection=self.connection,  # pylint: disable=no-member
-                    table_name=table_name,
-                    schema=self.context.get().database_schema,
+                    table_name=simple_table_name,  # Use simple name for inspector
+                    schema=schema_name,
                 )
                 if owner_name:
                     logger.debug(
-                        f"Found owner from source system for table '{table_name}': {owner_name}"
+                        f"Found owner from source system for table '{simple_table_name}': {owner_name}"
                     )
                     owner_ref = self.metadata.get_reference_by_name(
                         name=owner_name, is_owner=True
@@ -815,13 +894,13 @@ class DatabaseServiceSource(
                     owner_ref = resolver._get_owner_ref(default_owner)
                     if owner_ref:
                         logger.debug(
-                            f"Using default owner for table '{table_name}': {default_owner}"
+                            f"Using default owner for table '{simple_table_name}': {default_owner}"
                         )
                         return owner_ref
 
         except Exception as exc:
             logger.debug(traceback.format_exc())
-            logger.warning(f"Error processing owner for table {table_name}: {exc}")
+            logger.warning(f"Error processing owner for table {simple_table_name if 'simple_table_name' in locals() else table_name}: {exc}")
         return None
 
     def mark_tables_as_deleted(self):
