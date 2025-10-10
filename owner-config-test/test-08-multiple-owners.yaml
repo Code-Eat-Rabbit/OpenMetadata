@@ -1,0 +1,65 @@
+# ============================================
+# Test Case 8: Multiple Owners (New Feature)
+# ============================================
+# 测试场景：为实体配置多个 owners（数组格式）
+# 预期结果：
+#   - finance_db database → ["finance-team", "audit-team"]
+#   - accounting schema → ["accounting-team", "compliance-team"]
+#   - revenue table → ["revenue-team", "finance-team", "audit-team"]
+#   - expenses table → ["expense-team", "finance-team"]
+#   - 单个和多个 owner 混合使用
+
+source:
+  type: postgres
+  serviceName: postgres-finance-test-08
+  serviceConnection:
+    config:
+      type: Postgres
+      username: admin
+      authType:
+        password: admin123
+      hostPort: localhost:5433
+      database: finance_db
+  sourceConfig:
+    config:
+      type: DatabaseMetadata
+      
+      # Owner Configuration - Multiple Owners
+      ownerConfig:
+        default: "data-platform-team"
+        
+        # Database level - multiple owners
+        database:
+          "finance_db": ["finance-team", "audit-team"]
+        
+        # Schema level - mixed single and multiple
+        databaseSchema:
+          "finance_db.accounting": ["accounting-team", "compliance-team"]
+          "finance_db.treasury": "treasury-team"    # 单个 owner
+        
+        # Table level - mixed single and multiple
+        table:
+          "finance_db.accounting.revenue": ["revenue-team", "finance-team", "audit-team"]
+          "finance_db.accounting.expenses": ["expense-team", "finance-team"]
+          "finance_db.treasury.cash_flow": "treasury-ops-team"    # 单个 owner
+          "finance_db.treasury.investments": ["investment-team", "treasury-team"]
+        
+        enableInheritance: true
+      
+      includeTables: true
+      includeViews: true
+      markDeletedTables: true
+      useFqnForFiltering: true
+      overrideMetadata: true
+
+sink:
+  type: metadata-rest
+  config: {}
+
+workflowConfig:
+  loggerLevel: DEBUG
+  openMetadataServerConfig:
+    hostPort: http://localhost:8585/api
+    authProvider: openmetadata
+    securityConfig:
+      jwtToken: "YOUR_JWT_TOKEN_HERE"

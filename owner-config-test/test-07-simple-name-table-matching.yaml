@@ -1,0 +1,49 @@
+# ============================================
+# Test Case 7: Simple Name Table Matching (Fallback)
+# ============================================
+# 测试场景：使用简单名称匹配 table owners（测试 fallback 机制）
+# 预期结果：
+#   - 所有叫 "revenue" 的 table → "revenue-team"
+#   - 所有叫 "expenses" 的 table → "expense-team"
+#   - 应该在日志中看到 INFO 级别的 fallback 消息
+
+source:
+  type: postgres
+  serviceName: postgres-finance-test-07
+  serviceConnection:
+    config:
+      type: Postgres
+      username: admin
+      authType:
+        password: admin123
+      hostPort: localhost:5433
+      database: finance_db
+  sourceConfig:
+    config:
+      type: DatabaseMetadata
+      
+      # Owner Configuration
+      ownerConfig:
+        default: "data-platform-team"
+        table:
+          "revenue": "revenue-team"         # 简单名称，会触发 fallback
+          "expenses": "expense-team"        # 简单名称，会触发 fallback
+        enableInheritance: true
+      
+      includeTables: true
+      includeViews: true
+      markDeletedTables: true
+      useFqnForFiltering: true
+      overrideMetadata: true
+
+sink:
+  type: metadata-rest
+  config: {}
+
+workflowConfig:
+  loggerLevel: DEBUG
+  openMetadataServerConfig:
+    hostPort: http://localhost:8585/api
+    authProvider: openmetadata
+    securityConfig:
+      jwtToken: "YOUR_JWT_TOKEN_HERE"

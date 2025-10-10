@@ -1,0 +1,52 @@
+# ============================================
+# Test Case 6: FQN Table Matching
+# ============================================
+# 测试场景：使用 FQN 精确匹配 table owners
+# 预期结果：
+#   - finance_db.accounting.revenue → "revenue-team"
+#   - finance_db.accounting.expenses → "expense-team"
+#   - finance_db.treasury.cash_flow → "treasury-ops-team"
+#   - finance_db.treasury.investments → "investment-team"
+
+source:
+  type: postgres
+  serviceName: postgres-finance-test-06
+  serviceConnection:
+    config:
+      type: Postgres
+      username: admin
+      authType:
+        password: admin123
+      hostPort: localhost:5433
+      database: finance_db
+  sourceConfig:
+    config:
+      type: DatabaseMetadata
+      
+      # Owner Configuration
+      ownerConfig:
+        default: "data-platform-team"
+        table:
+          "finance_db.accounting.revenue": "revenue-team"
+          "finance_db.accounting.expenses": "expense-team"
+          "finance_db.treasury.cash_flow": "treasury-ops-team"
+          "finance_db.treasury.investments": "investment-team"
+        enableInheritance: true
+      
+      includeTables: true
+      includeViews: true
+      markDeletedTables: true
+      useFqnForFiltering: true
+      overrideMetadata: true
+
+sink:
+  type: metadata-rest
+  config: {}
+
+workflowConfig:
+  loggerLevel: DEBUG
+  openMetadataServerConfig:
+    hostPort: http://localhost:8585/api
+    authProvider: openmetadata
+    securityConfig:
+      jwtToken: "YOUR_JWT_TOKEN_HERE"

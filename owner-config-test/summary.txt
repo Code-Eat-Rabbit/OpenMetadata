@@ -1,0 +1,43 @@
+╔════════════════════════════════════════════════════════════╗
+║   OpenMetadata Owner Config 测试环境 - 已创建完成         ║
+╚════════════════════════════════════════════════════════════╝
+
+📁 测试环境目录: /workspace/owner-config-test
+
+📊 包含内容:
+   • 13 个测试配置文件 (YAML)
+   • 2 个管理脚本 (Shell)
+   • 3 个文档文件 (Markdown)
+   • 1 个 Docker Compose 配置
+   • 1 个数据库初始化脚本
+
+🗄️ 数据库结构:
+   PostgreSQL (localhost:5433)
+   ├── finance_db
+   │   ├── accounting (2 tables + 1 view)
+   │   └── treasury (2 tables)
+   └── marketing_db
+       ├── campaigns (2 tables)
+       └── analytics (2 tables + 1 view)
+
+🧪 测试覆盖:
+   ✓ 默认 owner 配置
+   ✓ 层级 owner 配置
+   ✓ FQN 精确匹配
+   ✓ 简单名称 fallback (L1 日志)
+   ✓ 多 owner 支持 (新功能)
+   ✓ 继承机制测试
+   ✓ 部分成功策略 (A1)
+   ✓ 综合场景测试
+
+🚀 快速开始:
+   1. ./start-test-env.sh
+   2. 创建测试 Teams
+   3. 更新 JWT Token
+   4. 运行测试
+
+📖 文档:
+   • QUICK-START.md  - 5分钟快速开始
+   • README.md       - 完整使用说明
+   • TEST-SCENARIOS.md - 测试场景对照表
+

@@ -1,0 +1,62 @@
+# ============================================
+# Test Case 9: Inheritance Enabled
+# ============================================
+# 测试场景：测试继承机制（enableInheritance: true）
+# 预期结果：
+#   - finance_db → "finance-team"
+#   - accounting schema 没有配置 → 继承 "finance-team"
+#   - treasury schema → "treasury-team"（自己有配置）
+#   - revenue table 没有配置 → 继承 accounting schema 的 owner
+#   - expenses table → "expense-team"（自己有配置）
+
+source:
+  type: postgres
+  serviceName: postgres-finance-test-09
+  serviceConnection:
+    config:
+      type: Postgres
+      username: admin
+      authType:
+        password: admin123
+      hostPort: localhost:5433
+      database: finance_db
+  sourceConfig:
+    config:
+      type: DatabaseMetadata
+      
+      # Owner Configuration - Test Inheritance
+      ownerConfig:
+        default: "data-platform-team"
+        
+        database:
+          "finance_db": "finance-team"
+        
+        databaseSchema:
+          # accounting schema 没有配置，应该继承 finance-team
+          "finance_db.treasury": "treasury-team"
+        
+        table:
+          # revenue 没有配置，应该继承 schema 的 owner
+          "finance_db.accounting.expenses": "expense-team"
+          # cash_flow 没有配置，应该继承 treasury-team
+          "finance_db.treasury.investments": "investment-team"
+        
+        enableInheritance: true    # 启用继承
+      
+      includeTables: true
+      includeViews: true
+      markDeletedTables: true
+      useFqnForFiltering: true
+      overrideMetadata: true
+
+sink:
+  type: metadata-rest
+  config: {}
+
+workflowConfig:
+  loggerLevel: DEBUG
+  openMetadataServerConfig:
+    hostPort: http://localhost:8585/api
+    authProvider: openmetadata
+    securityConfig:
+      jwtToken: "YOUR_JWT_TOKEN_HERE"
