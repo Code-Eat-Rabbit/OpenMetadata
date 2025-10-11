@@ -32,41 +32,89 @@ docker ps | grep postgres
 
 ## Step 2: Create Test Users and Teams in OpenMetadata
 
-### Option A: Using OpenMetadata UI
-
-1. Go to `http://localhost:8585`
-2. Navigate to **Settings → Users** and create:
-   - alice, bob, charlie, david, emma, frank
-   - marketing-user-1, marketing-user-2
-
-3. Navigate to **Settings → Teams** and create:
-   - data-platform-team
-   - finance-team, marketing-team
-   - accounting-team, treasury-team, expense-team
-   - revenue-team, investment-team, treasury-ops-team
-   - audit-team, compliance-team
-
-### Option B: Using API (Faster)
+### Option A: Using Setup Script (Easiest ⭐)
 
 ```bash
-# Get JWT token
+cd /workspace/ingestion/tests/integration/owner_config_tests
+
+# Method 1: Set environment variable
+export OPENMETADATA_JWT_TOKEN="your_jwt_token_here"
+./setup-test-entities.sh
+
+# Method 2: Pass as argument
+./setup-test-entities.sh "your_jwt_token_here"
+```
+
+The script will automatically create:
+- **8 users**: alice, bob, charlie, david, emma, frank, marketing-user-1, marketing-user-2
+- **11 teams**: data-platform-team, finance-team, marketing-team, accounting-team, treasury-team, expense-team, revenue-team, investment-team, treasury-ops-team, audit-team, compliance-team
+
+**Output example**:
+```
+Creating test users...
+----------------------------------------
+Creating user: alice ... ✓
+Creating user: bob ... ✓
+...
+Users: 8/8 created/verified
+
+Creating test teams...
+----------------------------------------
+Creating team: data-platform-team ... ✓
+Creating team: finance-team ... ✓
+...
+Teams: 11/11 created/verified
+
+✅ All entities created successfully!
+```
+
+### Option B: Manual API Calls
+
+<details>
+<summary>Click to expand manual API commands</summary>
+
+```bash
+# Set your JWT token
 JWT_TOKEN="your_jwt_token_here"
+API_URL="http://localhost:8585/api/v1"
 
 # Create users
 for user in alice bob charlie david emma frank marketing-user-1 marketing-user-2; do
-  curl -X POST "http://localhost:8585/api/v1/users" \
-    -H "Authorization: Bearer $JWT_TOKEN" \
+  curl -X POST "${API_URL}/users" \
+    -H "Authorization: Bearer ${JWT_TOKEN}" \
     -H "Content-Type: application/json" \
-    -d "{\"name\": \"$user\", \"email\": \"${user}@example.com\"}"
+    -d "{\"name\": \"${user}\", \"email\": \"${user}@example.com\"}"
 done
 
 # Create teams
 for team in data-platform-team finance-team marketing-team accounting-team treasury-team expense-team revenue-team investment-team treasury-ops-team audit-team compliance-team; do
-  curl -X POST "http://localhost:8585/api/v1/teams" \
-    -H "Authorization: Bearer $JWT_TOKEN" \
+  curl -X POST "${API_URL}/teams" \
+    -H "Authorization: Bearer ${JWT_TOKEN}" \
     -H "Content-Type: application/json" \
-    -d "{\"name\": \"$team\", \"teamType\": \"Group\"}"
+    -d "{\"name\": \"${team}\", \"teamType\": \"Group\"}"
 done
+```
+</details>
+
+### Option C: Using OpenMetadata UI
+
+If you prefer UI, go to `http://localhost:8585`:
+1. **Settings → Users** - Create 8 users listed above
+2. **Settings → Teams** - Create 11 teams listed above
+
+### Verify Creation
+
+```bash
+API_URL="http://localhost:8585/api/v1"
+JWT_TOKEN="your_jwt_token_here"
+
+# List all users
+curl -X GET "${API_URL}/users?limit=20" \
+  -H "Authorization: Bearer ${JWT_TOKEN}" | jq '.data[] | {name: .name, email: .email}'
+
+# List all teams
+curl -X GET "${API_URL}/teams?limit=20" \
+  -H "Authorization: Bearer ${JWT_TOKEN}" | jq '.data[] | {name: .name, teamType: .teamType}'
 ```
 
 ---

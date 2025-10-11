@@ -320,6 +320,13 @@ This test suite validates all owner configuration features with 8 focused test s
 
 For step-by-step setup and running tests, see **[QUICK-START.md](QUICK-START.md)**
 
+**TL;DR**: Use the provided setup script to create all test entities:
+```bash
+cd ingestion/tests/integration/owner_config_tests
+export OPENMETADATA_JWT_TOKEN="your_token"
+./setup-test-entities.sh
+```
+
 ### Test Database Structure
 
 **finance_db**:
