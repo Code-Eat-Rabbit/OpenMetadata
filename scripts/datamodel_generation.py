@@ -98,3 +98,50 @@ for file_path in DATETIME_AWARE_FILE_PATHS:
         content = content.replace("AwareDatetime", "datetime")
     with open(file_path, "w", encoding=UTF_8) as file_:
         file_.write(content)
+
+# Fix RootModel with extra config issue
+# RootModel in Pydantic 2.x does not support model_config['extra']
+print("Fixing RootModel with extra config issue...")
+# Find all generated Python files that might contain RootModel classes
+import glob
+ROOTMODEL_FILES = glob.glob(f"{ingestion_path}src/metadata/generated/**/*.py", recursive=True)
+
+for file_path in ROOTMODEL_FILES:
+    if os.path.exists(file_path):
+        with open(file_path, "r", encoding=UTF_8) as file_:
+            content = file_.read()
+            # Remove model_config from RootModel classes
+            lines = content.split('\n')
+            new_lines = []
+            in_rootmodel_class = False
+            skip_model_config = False
+            
+            for i, line in enumerate(lines):
+                # Check if we're entering a RootModel class
+                if 'class' in line and '(RootModel[' in line:
+                    in_rootmodel_class = True
+                    new_lines.append(line)
+                    continue
+                
+                # Check if we're exiting a class
+                if in_rootmodel_class and line and not line.startswith(' ') and not line.startswith('\t'):
+                    in_rootmodel_class = False
+                    skip_model_config = False
+                
+                # Skip model_config lines in RootModel classes
+                if in_rootmodel_class and 'model_config' in line:
+                    skip_model_config = True
+                    continue
+                
+                # Skip the ConfigDict block
+                if skip_model_config:
+                    if line.strip() == ')':
+                        skip_model_config = False
+                    continue
+                
+                new_lines.append(line)
+            
+            content = '\n'.join(new_lines)
+            
+        with open(file_path, "w", encoding=UTF_8) as file_:
+            file_.write(content)
