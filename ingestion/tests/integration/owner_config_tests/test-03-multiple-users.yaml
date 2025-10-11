@@ -1,15 +1,17 @@
 # ============================================
-# Test Case 2: Hierarchical Owners
+# Test Case 03: Multiple Users Valid
 # ============================================
-# 测试场景：为每个层级配置不同的 owner（string 格式）
-# 预期结果：
-#   - finance_db database → "finance-team"
-#   - 所有 schemas → "schema-admin-team"  
-#   - 所有 tables → "table-steward-team"
+# Test Scenario: Test multiple users as owners (valid scenario)
+# Expected Results:
+#   - finance_db → 2 owners (alice, bob) - both must be type="user"
+#   - finance_db.accounting.revenue → 3 owners (charlie, david, emma) - all type="user"
+#   - finance_db.accounting.expenses → 1 owner (frank) - type="user"
+#
+# Note: This test validates that multiple USERS can be assigned as owners
 
 source:
   type: postgres
-  serviceName: postgres-finance-test-02
+  serviceName: postgres-test-03-multiple-users
   serviceConnection:
     config:
       type: Postgres
@@ -22,12 +24,17 @@ source:
     config:
       type: DatabaseMetadata
       
-      # Owner Configuration
+      # Owner Configuration - Multiple users (valid)
       ownerConfig:
         default: "data-platform-team"
-        database: "finance-team"
-        databaseSchema: "schema-admin-team"
-        table: "table-steward-team"
+        
+        database:
+          "finance_db": ["alice", "bob"]  # 2 users
+        
+        table:
+          "finance_db.accounting.revenue": ["charlie", "david", "emma"]  # 3 users
+          "finance_db.accounting.expenses": ["frank"]  # 1 user in array (should work)
+        
         enableInheritance: true
       
       includeTables: true

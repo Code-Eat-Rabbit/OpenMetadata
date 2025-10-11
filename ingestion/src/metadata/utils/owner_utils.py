@@ -142,6 +142,11 @@ class OwnerResolver:
     def _get_owner_refs(self, owner_names: Union[str, List[str]]) -> Optional[EntityReferenceList]:
         """
         Get owner references from OpenMetadata (supports single or multiple owners)
+        
+        Business Rules:
+        - Multiple users are allowed
+        - Only ONE team is allowed
+        - Users and teams are mutually exclusive
 
         Args:
             owner_names: Single owner name or list of owner names (user/team name or email)
@@ -156,6 +161,8 @@ class OwnerResolver:
             return None
 
         all_owners = []
+        owner_types = set()  # Track types: 'user' or 'team'
+        
         for owner_name in owner_names:
             try:
                 if not owner_name:
@@ -166,15 +173,21 @@ class OwnerResolver:
                 )
 
                 if owner_ref:
-                    all_owners.extend(owner_ref.root)
-                    logger.debug(f"Found owner: {owner_name}")
+                    if owner_ref.root:
+                        owner_entity = owner_ref.root[0]
+                        all_owners.append(owner_entity)
+                        owner_types.add(owner_entity.type)
+                        logger.debug(f"Found owner: {owner_name} (type: {owner_entity.type})")
                     continue
 
                 if "@" in owner_name:
                     owner_ref = self.metadata.get_reference_by_email(owner_name)
                     if owner_ref:
-                        all_owners.extend(owner_ref.root)
-                        logger.debug(f"Found owner by email: {owner_name}")
+                        if owner_ref.root:
+                            owner_entity = owner_ref.root[0]
+                            all_owners.append(owner_entity)
+                            owner_types.add(owner_entity.type)
+                            logger.debug(f"Found owner by email: {owner_name} (type: {owner_entity.type})")
                         continue
 
                 logger.warning(f"Could not find owner: {owner_name}")
@@ -183,7 +196,26 @@ class OwnerResolver:
                 logger.warning(f"Error getting owner reference for '{owner_name}': {exc}")
                 logger.debug(traceback.format_exc())
 
-        return EntityReferenceList(root=all_owners) if all_owners else None
+        if not all_owners:
+            return None
+        
+        # VALIDATION 1: Cannot mix users and teams
+        if len(owner_types) > 1:
+            logger.warning(
+                f"VALIDATION ERROR: Cannot mix users and teams in owner list. "
+                f"Found types: {owner_types}. Skipping this owner configuration."
+            )
+            return None
+        
+        # VALIDATION 2: Only one team allowed
+        if "team" in owner_types and len(all_owners) > 1:
+            logger.warning(
+                f"VALIDATION ERROR: Only ONE team allowed as owner, but got {len(all_owners)} teams. "
+                f"Using only the first team: {all_owners[0].name}"
+            )
+            return EntityReferenceList(root=[all_owners[0]])
+        
+        return EntityReferenceList(root=all_owners)
 
 
 def get_owner_from_config(

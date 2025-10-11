@@ -44,6 +44,18 @@ CREATE TABLE accounting.expenses (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Tables in accounting schema (additional)
+CREATE TABLE accounting.budgets (
+    id SERIAL PRIMARY KEY,
+    fiscal_year INTEGER NOT NULL,
+    department VARCHAR(100),
+    category VARCHAR(50),
+    allocated_amount DECIMAL(15, 2),
+    spent_amount DECIMAL(15, 2),
+    remaining_amount DECIMAL(15, 2),
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Tables in treasury schema
 CREATE TABLE treasury.cash_flow (
     id SERIAL PRIMARY KEY,
@@ -65,6 +77,18 @@ CREATE TABLE treasury.investments (
     maturity_date DATE,
     interest_rate DECIMAL(5, 2),
     status VARCHAR(20),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE treasury.forecasts (
+    id SERIAL PRIMARY KEY,
+    forecast_date DATE NOT NULL,
+    forecast_type VARCHAR(50),
+    projected_revenue DECIMAL(15, 2),
+    projected_expenses DECIMAL(15, 2),
+    net_projection DECIMAL(15, 2),
+    confidence_level DECIMAL(5, 2),
+    notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -136,6 +160,22 @@ CREATE TABLE campaigns.social_media (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE campaigns.social_ads (
+    id SERIAL PRIMARY KEY,
+    ad_name VARCHAR(200) NOT NULL,
+    platform VARCHAR(50),
+    ad_type VARCHAR(50),
+    start_date DATE,
+    end_date DATE,
+    total_budget DECIMAL(10, 2),
+    spent_budget DECIMAL(10, 2),
+    impressions INTEGER,
+    clicks INTEGER,
+    conversions INTEGER,
+    status VARCHAR(20),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Tables in analytics schema
 CREATE TABLE analytics.customer_segments (
     id SERIAL PRIMARY KEY,
@@ -157,6 +197,19 @@ CREATE TABLE analytics.conversion_funnel (
     avg_time_in_stage INTEGER,
     date DATE,
     channel VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE analytics.web_traffic (
+    id SERIAL PRIMARY KEY,
+    page_url VARCHAR(500),
+    visit_date DATE,
+    unique_visitors INTEGER,
+    page_views INTEGER,
+    avg_session_duration INTEGER,
+    bounce_rate DECIMAL(5, 2),
+    traffic_source VARCHAR(100),
+    device_type VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

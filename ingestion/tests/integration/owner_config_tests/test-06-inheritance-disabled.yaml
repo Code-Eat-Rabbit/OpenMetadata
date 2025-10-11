@@ -1,17 +1,20 @@
 # ============================================
-# Test Case 9: Inheritance Enabled
+# Test Case 06: Inheritance Disabled
 # ============================================
-# 测试场景：测试继承机制（enableInheritance: true）
-# 预期结果：
+# Test Scenario: Test inheritance disabled (enableInheritance: false)
+# Expected Results:
 #   - finance_db → "finance-team"
-#   - accounting schema 没有配置 → 继承 "finance-team"
-#   - treasury schema → "treasury-team"（自己有配置）
-#   - revenue table 没有配置 → 继承 accounting schema 的 owner
-#   - expenses table → "expense-team"（自己有配置）
+#   - accounting schema → "data-platform-team" (DEFAULT, not inherited from database)
+#   - revenue table → "data-platform-team" (DEFAULT, not inherited from schema)
+#   - treasury schema → "treasury-team" (own config)
+#   - expenses table → "expense-team" (own config)
+#
+# This test validates that when inheritance is disabled:
+#   Priority: Specific Config > Default (skip inheritance)
 
 source:
   type: postgres
-  serviceName: postgres-finance-test-09
+  serviceName: postgres-test-06-inheritance-off
   serviceConnection:
     config:
       type: Postgres
@@ -24,24 +27,21 @@ source:
     config:
       type: DatabaseMetadata
       
-      # Owner Configuration - Test Inheritance
+      # Owner Configuration - Test inheritance disabled
       ownerConfig:
         default: "data-platform-team"
+        enableInheritance: false  # Explicitly disable inheritance
         
         database:
           "finance_db": "finance-team"
         
         databaseSchema:
-          # accounting schema 没有配置，应该继承 finance-team
+          # accounting schema has NO config - should use DEFAULT (not inherited)
           "finance_db.treasury": "treasury-team"
         
         table:
-          # revenue 没有配置，应该继承 schema 的 owner
+          # revenue table has NO config - should use DEFAULT (not inherited)
           "finance_db.accounting.expenses": "expense-team"
-          # cash_flow 没有配置，应该继承 treasury-team
-          "finance_db.treasury.investments": "investment-team"
-        
-        enableInheritance: true    # 启用继承
       
       includeTables: true
       includeViews: true
