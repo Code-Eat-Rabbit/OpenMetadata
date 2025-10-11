@@ -98,3 +98,55 @@ for file_path in DATETIME_AWARE_FILE_PATHS:
         content = content.replace("AwareDatetime", "datetime")
     with open(file_path, "w", encoding=UTF_8) as file_:
         file_.write(content)
+
+# Fix RootModel classes that cannot have 'extra' configuration
+# RootModel classes in Pydantic 2.x do not support model_config['extra']
+# The issue is that datamodel-code-generator uses --base-class which makes ALL classes
+# inherit from BaseModel, but RootModel should inherit directly from pydantic.RootModel
+ROOTMODEL_FIX_FILE_PATHS = [
+    f"{ingestion_path}src/metadata/generated/schema/type/ownerConfig.py",
+]
+
+for file_path in ROOTMODEL_FIX_FILE_PATHS:
+    try:
+        with open(file_path, "r", encoding=UTF_8) as file_:
+            content = file_.read()
+            # Check if file contains RootModel classes that might have inherited extra config
+            if "RootModel" in content:
+                # The real issue is that RootModel classes inherit from BaseModel which might have extra config
+                # We need to ensure RootModel classes don't inherit any model_config with 'extra'
+                lines = content.split('\n')
+                new_lines = []
+                skip_config = False
+                in_rootmodel_class = False
+                brace_count = 0
+                
+                for line in lines:
+                    # Detect RootModel class definition
+                    if "class " in line and "RootModel[" in line:
+                        in_rootmodel_class = True
+                        new_lines.append(line)
+                    elif line.strip().startswith("class ") and "RootModel" not in line:
+                        in_rootmodel_class = False
+                        new_lines.append(line)
+                    elif in_rootmodel_class and "model_config = ConfigDict(" in line:
+                        # Skip model_config for RootModel classes
+                        skip_config = True
+                        brace_count = 1
+                        continue
+                    elif skip_config:
+                        # Count braces to know when ConfigDict ends
+                        brace_count += line.count('(') - line.count(')')
+                        if brace_count <= 0:
+                            skip_config = False
+                        continue
+                    else:
+                        new_lines.append(line)
+                
+                new_content = '\n'.join(new_lines)
+                if new_content != content:
+                    with open(file_path, "w", encoding=UTF_8) as file_:
+                        file_.write(new_content)
+    except FileNotFoundError:
+        # File might not exist yet, skip
+        pass
