@@ -15,6 +15,7 @@ from a configured secrets' manager.
 """
 import datamodel_code_generator.model.pydantic
 from datamodel_code_generator.imports import Import
+import glob
 import os
 import re
 
@@ -98,3 +99,75 @@ for file_path in DATETIME_AWARE_FILE_PATHS:
         content = content.replace("AwareDatetime", "datetime")
     with open(file_path, "w", encoding=UTF_8) as file_:
         file_.write(content)
+
+# Fix RootModel with extra config
+# RootModel does not support setting model_config['extra'] in Pydantic 2.x
+# This fixes the error: PydanticUserError: `RootModel` does not support setting `model_config['extra']`
+# We need to remove the extra='forbid' config from any RootModel classes
+
+GENERATED_SCHEMA_PATH = f"{ingestion_path}src/metadata/generated/schema"
+rootmodel_files = glob.glob(f"{GENERATED_SCHEMA_PATH}/**/*.py", recursive=True)
+
+for file_path in rootmodel_files:
+    try:
+        with open(file_path, "r", encoding=UTF_8) as file_:
+            content = file_.read()
+        
+        # Check if file contains RootModel classes
+        if "class " in content and "RootModel[" in content:
+            lines = content.split('\n')
+            new_lines = []
+            in_rootmodel_class = False
+            skip_next_model_config = False
+            
+            for i, line in enumerate(lines):
+                # Check if this line defines a RootModel class
+                if "class " in line and "RootModel[" in line:
+                    in_rootmodel_class = True
+                    skip_next_model_config = False
+                    new_lines.append(line)
+                    continue
+                
+                # Check if we're in a RootModel class and encounter model_config with extra
+                if in_rootmodel_class and "model_config = " in line and "extra=" in line:
+                    # Check if model_config only contains 'extra', if so skip the entire line
+                    if "ConfigDict(extra=" in line and line.strip().endswith(")"):
+                        # Skip this line entirely if it only contains extra config
+                        # Check next few lines to see if this is the only config
+                        peek_ahead = ""
+                        for j in range(i+1, min(i+3, len(lines))):
+                            peek_ahead += lines[j]
+                        
+                        # If the model_config only has extra, skip it
+                        if "ConfigDict(extra='forbid')" in line or "ConfigDict(extra=\"forbid\")" in line:
+                            skip_next_model_config = True
+                            continue
+                    
+                    # Otherwise remove just the extra parameter
+                    # Handle both single-line and multi-line ConfigDict
+                    modified_line = re.sub(r",?\s*extra=['\"]forbid['\"],?\s*", "", line)
+                    # Clean up resulting double commas or trailing commas before closing paren
+                    modified_line = re.sub(r',\s*,', ',', modified_line)
+                    modified_line = re.sub(r',\s*\)', ')', modified_line)
+                    # If ConfigDict is now empty, skip the line
+                    if "ConfigDict()" in modified_line:
+                        continue
+                    new_lines.append(modified_line)
+                    continue
+                
+                # Reset flag when we hit the next class or significant dedent
+                if in_rootmodel_class and line and not line[0].isspace() and "class " in line:
+                    in_rootmodel_class = False
+                    
+                new_lines.append(line)
+            
+            modified_content = '\n'.join(new_lines)
+            
+            # Only write if content changed
+            if modified_content != content:
+                with open(file_path, "w", encoding=UTF_8) as file_:
+                    file_.write(modified_content)
+                    
+    except Exception as e:
+        # Don't fail the entire generation if one file has issues
+        print(f"Warning: Could not process {file_path}: {e}")
