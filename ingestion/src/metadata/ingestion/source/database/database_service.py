@@ -679,13 +679,34 @@ class DatabaseServiceSource(
         """
         try:
             parent_owner = None
-            database_schema_entity = getattr(
-                self.context.get(), "database_schema_entity", None
-            )
-            if database_schema_entity:
-                schema_owners = database_schema_entity.owners
-                if schema_owners and schema_owners.root:
-                    parent_owner = schema_owners.root[0].name
+            
+            # Get parent owner from schema's ownerConfig resolution
+            # We need to resolve the schema's owner first to enable proper inheritance
+            if (
+                hasattr(self.source_config, "ownerConfig")
+                and self.source_config.ownerConfig
+            ):
+                schema_fqn = f"{self.context.get().database}.{self.context.get().database_schema}"
+                
+                # First, get the database owner for schema inheritance
+                database_owner = None
+                database_entity = getattr(self.context.get(), "database_entity", None)
+                if database_entity:
+                    db_owners = database_entity.owners
+                    if db_owners and db_owners.root:
+                        database_owner = db_owners.root[0].name
+                
+                # Resolve schema owner (which may inherit from database)
+                schema_owner_ref = get_owner_from_config(
+                    metadata=self.metadata,
+                    owner_config=self.source_config.ownerConfig,
+                    entity_type="databaseSchema",
+                    entity_name=schema_fqn,
+                    parent_owner=database_owner,
+                )
+                
+                if schema_owner_ref and schema_owner_ref.root:
+                    parent_owner = schema_owner_ref.root[0].name
 
             table_fqn = f"{self.context.get().database}.{self.context.get().database_schema}.{table_name}"
 
