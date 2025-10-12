@@ -13,7 +13,7 @@ Base class for ingesting database services
 """
 import traceback
 from abc import ABC, abstractmethod
-from typing import Any, Iterable, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 from pydantic import BaseModel, Field
 from sqlalchemy.engine import Inspector
@@ -225,6 +225,8 @@ class DatabaseServiceSource(
     stored_procedure_source_state: Set = set()
     database_entity_source_state: Set = set()
     schema_entity_source_state: Set = set()
+    # Cache for schema owners to avoid repeated API calls during table ingestion
+    schema_owner_cache: Dict[str, Optional[str]] = {}
     # Big union of types we want to fetch dynamically
     service_connection: DatabaseConnection.model_fields["config"].annotation
 
@@ -654,6 +656,9 @@ class DatabaseServiceSource(
                     parent_owner=parent_owner,
                 )
                 if owner_ref:
+                    # Cache the resolved owner for table inheritance
+                    if owner_ref.root:
+                        self.schema_owner_cache[schema_fqn] = owner_ref.root[0].name
                     return owner_ref
 
         except Exception as exc:
@@ -680,31 +685,20 @@ class DatabaseServiceSource(
         try:
             parent_owner = None
             
-            # Get parent owner from schema entity
-            # Since schema entity is not stored in context, we fetch it from the API
+            # Get parent owner from cached schema owner
+            # The schema owner was cached when the schema was processed
             if (
                 hasattr(self.source_config, "ownerConfig")
                 and self.source_config.ownerConfig
             ):
-                schema_fqn = fqn.build(
-                    metadata=self.metadata,
-                    entity_type=DatabaseSchema,
-                    service_name=self.context.get().database_service,
-                    database_name=self.context.get().database,
-                    schema_name=self.context.get().database_schema,
-                )
+                schema_fqn = f"{self.context.get().database}.{self.context.get().database_schema}"
                 
-                # Fetch schema entity to get its resolved owner
-                try:
-                    schema_entity = self.metadata.get_by_name(
-                        entity=DatabaseSchema,
-                        fqn=schema_fqn,
-                        fields=["owners"],
-                    )
-                    if schema_entity and schema_entity.owners and schema_entity.owners.root:
-                        parent_owner = schema_entity.owners.root[0].name
-                except Exception as exc:
-                    logger.debug(f"Could not fetch schema entity for owner inheritance: {exc}")
+                # Use cached schema owner if available
+                parent_owner = self.schema_owner_cache.get(schema_fqn)
+                
+                logger.debug(
+                    f"Table '{table_name}': Using cached schema owner from '{schema_fqn}': {parent_owner}"
+                )
 
             table_fqn = f"{self.context.get().database}.{self.context.get().database_schema}.{table_name}"
 
