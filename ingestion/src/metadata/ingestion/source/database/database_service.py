@@ -611,6 +611,9 @@ class DatabaseServiceSource(
                     parent_owner=None,  # Database is top level
                 )
                 if owner_ref:
+                    # Cache the resolved owner for schema inheritance
+                    if owner_ref.root:
+                        self.schema_owner_cache[database_name] = owner_ref.root[0].name
                     return owner_ref
 
         except Exception as exc:
@@ -635,12 +638,14 @@ class DatabaseServiceSource(
             EntityReferenceList with owner or None
         """
         try:
+            # Get parent owner from cached database owner
             parent_owner = None
-            database_entity = getattr(self.context.get(), "database_entity", None)
-            if database_entity:
-                db_owners = database_entity.owners
-                if db_owners and db_owners.root:
-                    parent_owner = db_owners.root[0].name
+            database_name = self.context.get().database
+            if database_name:
+                parent_owner = self.schema_owner_cache.get(database_name)
+                logger.debug(
+                    f"Schema '{schema_name}': Using cached database owner from '{database_name}': {parent_owner}"
+                )
 
             schema_fqn = f"{self.context.get().database}.{schema_name}"
 
