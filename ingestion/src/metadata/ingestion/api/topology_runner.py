@@ -446,20 +446,6 @@ class TopologyRunnerMixin(Generic[C]):
                 )
 
         self.context.get().update_context_name(stage=stage, right=right)
-        
-        # Store the entity in context for downstream inheritance
-        # After yielding the request to sink, fetch the entity from API to get the complete entity
-        # with all resolved fields (like owners) for child entities to inherit from
-        if stage.context and not same_fingerprint:
-            # Fetch the entity after it has been created/updated by the sink
-            entity = self.metadata.get_by_name(
-                entity=stage.type_,
-                fqn=entity_fqn,
-                fields=["owners"],  # Only fetch owners field for performance
-            )
-            if entity:
-                entity_context_key = f"{stage.context}_entity"
-                self.context.get().upsert(key=entity_context_key, value=entity)
 
     @yield_and_update_context.register
     def _(

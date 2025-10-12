@@ -633,7 +633,30 @@ class DatabaseServiceSource(
         """
         try:
             parent_owner = None
+            
+            # Try to get database_entity from context
             database_entity = getattr(self.context.get(), "database_entity", None)
+            
+            # If not in context, fetch from API and cache it
+            if database_entity is None and self.context.get().database:
+                try:
+                    database_fqn = fqn.build(
+                        metadata=self.metadata,
+                        entity_type=Database,
+                        service_name=self.context.get().database_service,
+                        database_name=self.context.get().database,
+                    )
+                    database_entity = self.metadata.get_by_name(
+                        entity=Database,
+                        fqn=database_fqn,
+                        fields=["owners"],
+                    )
+                    if database_entity:
+                        # Cache in context for future use
+                        self.context.get().upsert(key="database_entity", value=database_entity)
+                except Exception as exc:
+                    logger.debug(f"Could not fetch database entity: {exc}")
+            
             if database_entity:
                 db_owners = database_entity.owners
                 if db_owners and db_owners.root:
@@ -678,9 +701,33 @@ class DatabaseServiceSource(
         """
         try:
             parent_owner = None
+            
+            # Try to get database_schema_entity from context
             database_schema_entity = getattr(
                 self.context.get(), "database_schema_entity", None
             )
+            
+            # If not in context, fetch from API and cache it
+            if database_schema_entity is None and self.context.get().database_schema:
+                try:
+                    schema_fqn = fqn.build(
+                        metadata=self.metadata,
+                        entity_type=DatabaseSchema,
+                        service_name=self.context.get().database_service,
+                        database_name=self.context.get().database,
+                        schema_name=self.context.get().database_schema,
+                    )
+                    database_schema_entity = self.metadata.get_by_name(
+                        entity=DatabaseSchema,
+                        fqn=schema_fqn,
+                        fields=["owners"],
+                    )
+                    if database_schema_entity:
+                        # Cache in context for future use
+                        self.context.get().upsert(key="database_schema_entity", value=database_schema_entity)
+                except Exception as exc:
+                    logger.debug(f"Could not fetch schema entity: {exc}")
+            
             if database_schema_entity:
                 schema_owners = database_schema_entity.owners
                 if schema_owners and schema_owners.root:
