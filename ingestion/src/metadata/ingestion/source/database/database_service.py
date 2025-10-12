@@ -225,8 +225,6 @@ class DatabaseServiceSource(
     stored_procedure_source_state: Set = set()
     database_entity_source_state: Set = set()
     schema_entity_source_state: Set = set()
-    # Cache for schema owners to avoid repeated API calls during table ingestion
-    schema_owner_cache: Dict[str, Optional[str]] = {}
     # Big union of types we want to fetch dynamically
     service_connection: DatabaseConnection.model_fields["config"].annotation
 
@@ -598,7 +596,6 @@ class DatabaseServiceSource(
             EntityReferenceList with owner or None
         """
         try:
-            # Priority 1: Use ownerConfig if configured
             if (
                 hasattr(self.source_config, "ownerConfig")
                 and self.source_config.ownerConfig
@@ -611,9 +608,6 @@ class DatabaseServiceSource(
                     parent_owner=None,  # Database is top level
                 )
                 if owner_ref:
-                    # Cache the resolved owner for schema inheritance
-                    if owner_ref.root:
-                        self.schema_owner_cache[database_name] = owner_ref.root[0].name
                     return owner_ref
 
         except Exception as exc:
@@ -638,14 +632,12 @@ class DatabaseServiceSource(
             EntityReferenceList with owner or None
         """
         try:
-            # Get parent owner from cached database owner
             parent_owner = None
-            database_name = self.context.get().database
-            if database_name:
-                parent_owner = self.schema_owner_cache.get(database_name)
-                logger.debug(
-                    f"Schema '{schema_name}': Using cached database owner from '{database_name}': {parent_owner}"
-                )
+            database_entity = getattr(self.context.get(), "database_entity", None)
+            if database_entity:
+                db_owners = database_entity.owners
+                if db_owners and db_owners.root:
+                    parent_owner = db_owners.root[0].name
 
             schema_fqn = f"{self.context.get().database}.{schema_name}"
 
@@ -661,9 +653,6 @@ class DatabaseServiceSource(
                     parent_owner=parent_owner,
                 )
                 if owner_ref:
-                    # Cache the resolved owner for table inheritance
-                    if owner_ref.root:
-                        self.schema_owner_cache[schema_fqn] = owner_ref.root[0].name
                     return owner_ref
 
         except Exception as exc:
@@ -689,21 +678,13 @@ class DatabaseServiceSource(
         """
         try:
             parent_owner = None
-            
-            # Get parent owner from cached schema owner
-            # The schema owner was cached when the schema was processed
-            if (
-                hasattr(self.source_config, "ownerConfig")
-                and self.source_config.ownerConfig
-            ):
-                schema_fqn = f"{self.context.get().database}.{self.context.get().database_schema}"
-                
-                # Use cached schema owner if available
-                parent_owner = self.schema_owner_cache.get(schema_fqn)
-                
-                logger.debug(
-                    f"Table '{table_name}': Using cached schema owner from '{schema_fqn}': {parent_owner}"
-                )
+            database_schema_entity = getattr(
+                self.context.get(), "database_schema_entity", None
+            )
+            if database_schema_entity:
+                schema_owners = database_schema_entity.owners
+                if schema_owners and schema_owners.root:
+                    parent_owner = schema_owners.root[0].name
 
             table_fqn = f"{self.context.get().database}.{self.context.get().database_schema}.{table_name}"
 
