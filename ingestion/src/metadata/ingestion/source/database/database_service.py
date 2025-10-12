@@ -608,6 +608,25 @@ class DatabaseServiceSource(
                     parent_owner=None,  # Database is top level
                 )
                 if owner_ref:
+                    # After resolving owner, fetch and cache the database entity for schema inheritance
+                    # This avoids API calls when processing schemas
+                    try:
+                        database_fqn = fqn.build(
+                            metadata=self.metadata,
+                            entity_type=Database,
+                            service_name=self.context.get().database_service,
+                            database_name=database_name,
+                        )
+                        database_entity = self.metadata.get_by_name(
+                            entity=Database,
+                            fqn=database_fqn,
+                            fields=["owners"],
+                        )
+                        if database_entity:
+                            self.context.get().upsert(key="database_entity", value=database_entity)
+                    except Exception as cache_exc:
+                        logger.debug(f"Could not cache database entity: {cache_exc}")
+                    
                     return owner_ref
 
         except Exception as exc:
@@ -634,29 +653,8 @@ class DatabaseServiceSource(
         try:
             parent_owner = None
             
-            # Try to get database_entity from context
+            # Get database_entity from context (should be cached by get_database_owner_ref)
             database_entity = getattr(self.context.get(), "database_entity", None)
-            
-            # If not in context, fetch from API and cache it
-            if database_entity is None and self.context.get().database:
-                try:
-                    database_fqn = fqn.build(
-                        metadata=self.metadata,
-                        entity_type=Database,
-                        service_name=self.context.get().database_service,
-                        database_name=self.context.get().database,
-                    )
-                    database_entity = self.metadata.get_by_name(
-                        entity=Database,
-                        fqn=database_fqn,
-                        fields=["owners"],
-                    )
-                    if database_entity:
-                        # Cache in context for future use
-                        self.context.get().upsert(key="database_entity", value=database_entity)
-                except Exception as exc:
-                    logger.debug(f"Could not fetch database entity: {exc}")
-            
             if database_entity:
                 db_owners = database_entity.owners
                 if db_owners and db_owners.root:
@@ -676,6 +674,26 @@ class DatabaseServiceSource(
                     parent_owner=parent_owner,
                 )
                 if owner_ref:
+                    # After resolving owner, fetch and cache the schema entity for table inheritance
+                    # This avoids API calls when processing tables
+                    try:
+                        schema_fqn_full = fqn.build(
+                            metadata=self.metadata,
+                            entity_type=DatabaseSchema,
+                            service_name=self.context.get().database_service,
+                            database_name=self.context.get().database,
+                            schema_name=schema_name,
+                        )
+                        schema_entity = self.metadata.get_by_name(
+                            entity=DatabaseSchema,
+                            fqn=schema_fqn_full,
+                            fields=["owners"],
+                        )
+                        if schema_entity:
+                            self.context.get().upsert(key="database_schema_entity", value=schema_entity)
+                    except Exception as cache_exc:
+                        logger.debug(f"Could not cache schema entity: {cache_exc}")
+                    
                     return owner_ref
 
         except Exception as exc:
@@ -702,32 +720,10 @@ class DatabaseServiceSource(
         try:
             parent_owner = None
             
-            # Try to get database_schema_entity from context
+            # Get database_schema_entity from context (should be cached by get_schema_owner_ref)
             database_schema_entity = getattr(
                 self.context.get(), "database_schema_entity", None
             )
-            
-            # If not in context, fetch from API and cache it
-            if database_schema_entity is None and self.context.get().database_schema:
-                try:
-                    schema_fqn = fqn.build(
-                        metadata=self.metadata,
-                        entity_type=DatabaseSchema,
-                        service_name=self.context.get().database_service,
-                        database_name=self.context.get().database,
-                        schema_name=self.context.get().database_schema,
-                    )
-                    database_schema_entity = self.metadata.get_by_name(
-                        entity=DatabaseSchema,
-                        fqn=schema_fqn,
-                        fields=["owners"],
-                    )
-                    if database_schema_entity:
-                        # Cache in context for future use
-                        self.context.get().upsert(key="database_schema_entity", value=database_schema_entity)
-                except Exception as exc:
-                    logger.debug(f"Could not fetch schema entity: {exc}")
-            
             if database_schema_entity:
                 schema_owners = database_schema_entity.owners
                 if schema_owners and schema_owners.root:
