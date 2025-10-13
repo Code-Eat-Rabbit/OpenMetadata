@@ -17,7 +17,11 @@ This guide helps you quickly set up and run the owner configuration tests.
 ## Step 1: Start PostgreSQL Test Database
 
 ```bash
-cd /workspace/ingestion/tests/unit/metadata/ingestion/owner_config_tests
+# Navigate to OpenMetadata root directory first
+cd ~/path/to/OpenMetadata
+
+# Then navigate to test directory
+cd ingestion/tests/unit/metadata/ingestion/owner_config_tests
 docker-compose up -d
 ```
 
@@ -42,7 +46,8 @@ docker ps | grep postgres
 ### Option A: Using Setup Script (Easiest ⭐)
 
 ```bash
-cd /workspace/ingestion/tests/unit/metadata/ingestion/owner_config_tests
+# From OpenMetadata root directory
+cd ingestion/tests/unit/metadata/ingestion/owner_config_tests
 
 # Method 1: Set environment variable
 export OPENMETADATA_JWT_TOKEN="your_jwt_token_here"
@@ -116,7 +121,7 @@ Teams:  11/11
 
 Next steps:
   1. Update JWT tokens in test YAML files
-  2. Run tests: cd /workspace/ingestion && metadata ingest -c tests/unit/metadata/ingestion/owner_config_tests/test-05-inheritance-enabled.yaml
+  2. Run tests: cd <OpenMetadata-root> && metadata ingest -c ingestion/tests/unit/metadata/ingestion/owner_config_tests/test-05-inheritance-enabled.yaml
 ```
 
 ### Option B: Manual API Calls
@@ -174,12 +179,18 @@ curl -X GET "${API_URL}/teams?limit=20" \
 Edit the JWT token in test files:
 
 ```bash
-cd /workspace/ingestion/tests/unit/metadata/ingestion/owner_config_tests
+# From OpenMetadata root directory
+cd ingestion/tests/unit/metadata/ingestion/owner_config_tests
 
-# Replace JWT_TOKEN in all test files
+# Replace JWT_TOKEN in all test files (macOS)
 for test in test-*.yaml; do
   sed -i '' 's/YOUR_JWT_TOKEN_HERE/your_actual_jwt_token_here/g' "$test"
 done
+
+# Or on Linux:
+# for test in test-*.yaml; do
+#   sed -i 's/YOUR_JWT_TOKEN_HERE/your_actual_jwt_token_here/g' "$test"
+# done
 ```
 
 Or manually edit each file and replace:
@@ -196,8 +207,8 @@ Before running tests, set up your Python environment:
 ### Activate Virtual Environment
 
 ```bash
-# Navigate to OpenMetadata workspace root
-cd ~/workspace/OpenMetadata
+# Navigate to OpenMetadata root directory
+cd ~/path/to/OpenMetadata
 
 # Activate the virtual environment
 source env/bin/activate
@@ -208,7 +219,8 @@ source env/bin/activate
 If `metadata` command is not found:
 
 ```bash
-cd ~/workspace/OpenMetadata/ingestion
+# From OpenMetadata root directory
+cd ingestion
 
 # Install OpenMetadata ingestion package
 pip install -e .
@@ -220,14 +232,14 @@ pip install -e '.[postgres]'
 
 ## Step 6: Run Tests
 
-**Important**: All commands assume you're in the workspace root directory (`/workspace/OpenMetadata`).
+**Important**: All commands assume you're in the **OpenMetadata root directory**.
 
 ### Run a Single Test
 
 Here's how to run one test to verify everything is working:
 
 ```bash
-# Run Test 05 (Inheritance test - most critical)
+# From OpenMetadata root directory, run Test 05 (Inheritance test - most critical)
 metadata ingest -c ingestion/tests/unit/metadata/ingestion/owner_config_tests/test-05-inheritance-enabled.yaml
 ```
 
@@ -238,6 +250,7 @@ metadata ingest -c ingestion/tests/unit/metadata/ingestion/owner_config_tests/te
 
 **Run with verbose logging** (for debugging):
 ```bash
+# From OpenMetadata root directory
 metadata ingest -c ingestion/tests/unit/metadata/ingestion/owner_config_tests/test-05-inheritance-enabled.yaml --log-level DEBUG
 ```
 
@@ -248,12 +261,12 @@ metadata ingest -c ingestion/tests/unit/metadata/ingestion/owner_config_tests/te
 Use the provided script to run all 8 tests automatically:
 
 ```bash
-# Make sure you're in workspace root with virtual environment activated
-# cd /workspace/OpenMetadata
+# Make sure you're in OpenMetadata root with virtual environment activated
+# cd ~/path/to/OpenMetadata
 # source env/bin/activate
 
-# Run the test script
-cd ./ingestion/tests/unit/metadata/ingestion/owner_config_tests
+# Navigate to test directory and run the script
+cd ingestion/tests/unit/metadata/ingestion/owner_config_tests
 ./run-all-tests.sh
 ```
 
@@ -353,8 +366,8 @@ Please check the results on the OpenMetaData web interface to see if it is consi
 When done testing:
 
 ```bash
-# Stop and remove PostgreSQL
-cd /workspace/ingestion/tests/unit/metadata/ingestion/owner_config_tests
+# Stop and remove PostgreSQL (from OpenMetadata root directory)
+cd ingestion/tests/unit/metadata/ingestion/owner_config_tests
 docker-compose down -v
 
 # Remove test entities from OpenMetadata (optional)
