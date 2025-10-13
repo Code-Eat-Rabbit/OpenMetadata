@@ -1,13 +1,14 @@
 # ============================================
-# Test Case 03: Multiple Users Valid
+# Test Case 03: Database and Table Level Owners
 # ============================================
-# Test Scenario: Test multiple users as owners (valid scenario)
+# Test Scenario: Test specific database and table level owner assignment
 # Expected Results:
-#   - finance_db → 2 owners (alice, bob) - both must be type="user"
-#   - finance_db.accounting.revenue → 3 owners (charlie, david, emma) - all type="user"
-#   - finance_db.accounting.expenses → 1 owner (frank) - type="user"
+#   - finance_db → alice (user)
+#   - finance_db.accounting.revenue → charlie (user)
+#   - finance_db.accounting.expenses → frank (user)
+#   - Other entities → inherit or use default
 #
-# Note: This test validates that multiple USERS can be assigned as owners
+# Note: Modified for Pydantic 2.11.9 compatibility (single owner per entity)
 
 source:
   type: postgres
@@ -24,16 +25,16 @@ source:
     config:
       type: DatabaseMetadata
       
-      # Owner Configuration - Multiple users (valid)
+      # Owner Configuration - Single owner per entity
       ownerConfig:
         default: "data-platform-team"
         
         database:
-          "finance_db": ["alice", "bob"]  # 2 users
+          "finance_db": "alice"  # Single user
         
         table:
-          "finance_db.accounting.revenue": ["charlie", "david", "emma"]  # 3 users
-          "finance_db.accounting.expenses": ["frank"]  # 1 user in array (should work)
+          "finance_db.accounting.revenue": "charlie"  # Single user
+          "finance_db.accounting.expenses": "frank"  # Single user
         
         enableInheritance: true
       

@@ -4,18 +4,20 @@
 # Test Scenario: Comprehensive test combining all features
 # Tests combination of:
 #   - FQN vs simple name matching
-#   - Multiple users vs single team
+#   - Users and teams
 #   - Inheritance for unconfigured entities
 #   - All validation rules working together
 #
 # Expected Results:
 #   - finance_db → "finance-team" (single team)
-#   - marketing_db → 2 users (marketing-user-1, marketing-user-2)
-#   - finance_db.accounting → 2 users (alice, bob) - FQN match
+#   - marketing_db → "marketing-user-1" (user)
+#   - finance_db.accounting → "alice" (user) - FQN match
 #   - finance_db.treasury → "treasury-team" (simple name match, log INFO)
-#   - finance_db.accounting.revenue → 3 users (charlie, david, emma) - FQN match
+#   - finance_db.accounting.revenue → "charlie" (user) - FQN match
 #   - finance_db.accounting.expenses → "expense-team" (simple name match, log INFO)
 #   - finance_db.treasury.cash_flow → "treasury-ops-team" - FQN match
+#
+# Note: Modified for Pydantic 2.11.9 compatibility (single owner per entity)
 
 source:
   type: postgres
@@ -39,16 +41,16 @@ source:
         
         database:
           "finance_db": "finance-team"
-          "marketing_db": ["marketing-user-1", "marketing-user-2"]  # Multiple users
+          "marketing_db": "marketing-user-1"  # Single user
         
         databaseSchema:
-          "finance_db.accounting": ["alice", "bob"]  # FQN + multiple users
-          "treasury": "treasury-team"                # Simple name + single team
+          "finance_db.accounting": "alice"  # FQN + single user
+          "treasury": "treasury-team"       # Simple name + single team
         
         table:
-          "finance_db.accounting.revenue": ["charlie", "david", "emma"]  # FQN + 3 users
-          "expenses": "expense-team"                                      # Simple name + team
-          "finance_db.treasury.cash_flow": "treasury-ops-team"           # FQN + team
+          "finance_db.accounting.revenue": "charlie"  # FQN + single user
+          "expenses": "expense-team"                  # Simple name + team
+          "finance_db.treasury.cash_flow": "treasury-ops-team"  # FQN + team
       
       includeTables: true
       includeViews: true

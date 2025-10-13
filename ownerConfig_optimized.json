@@ -16,7 +16,7 @@
       "type": "string"
     },
     "database": {
-      "description": "Owner for database entities. Can be a single owner (string) for all databases, or a map of database names to their owner (string). Business rules: one owner per database (user or team name).",
+      "description": "Owner for database entities. Can be a single owner (string) for all databases, or a map of database names to their owner (string only for Pydantic 2.x compatibility). Business rules: one owner per database, can be user or team.",
       "anyOf": [
         {
           "type": "string",
@@ -38,7 +38,7 @@
       ]
     },
     "databaseSchema": {
-      "description": "Owner for schema entities. Can be a single owner (string) for all schemas, or a map of schema FQNs to their owner (string). Business rules: one owner per schema (user or team name).",
+      "description": "Owner for schema entities. Can be a single owner (string) for all schemas, or a map of schema FQNs to their owner (string only for Pydantic 2.x compatibility). Business rules: one owner per schema, can be user or team.",
       "anyOf": [
         {
           "type": "string",
@@ -60,7 +60,7 @@
       ]
     },
     "table": {
-      "description": "Owner for table entities. Can be a single owner (string) for all tables, or a map of table FQNs to their owner (string). Business rules: one owner per table (user or team name).",
+      "description": "Owner for table entities. Can be a single owner (string) for all tables, or a map of table FQNs to their owner (string only for Pydantic 2.x compatibility). Business rules: one owner per table, can be user or team.",
       "anyOf": [
         {
           "type": "string",
@@ -122,4 +122,3 @@
     }
   ]
 }
-
