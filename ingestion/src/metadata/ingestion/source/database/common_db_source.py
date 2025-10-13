@@ -220,6 +220,11 @@ class CommonDbSourceService(
         # Store database owner in context BEFORE yielding (for multi-threading)
         # This ensures worker threads get the correct parent_owner when they copy context
         database_owner_ref = self.get_database_owner_ref(database_name)
+        
+        # 🔍 DEBUG: Check if we got owner_ref
+        import sys
+        print(f"🔍 [DB_CHECK] database={database_name}, owner_ref={database_owner_ref}, has_root={database_owner_ref.root if database_owner_ref else None}", file=sys.stderr)
+        
         if database_owner_ref and database_owner_ref.root:
             # Store ALL owner names (support multiple owners for inheritance)
             database_owner_names = [owner.name for owner in database_owner_ref.root]
@@ -227,12 +232,12 @@ class CommonDbSourceService(
             database_owner = database_owner_names[0] if len(database_owner_names) == 1 else database_owner_names
             
             # 🔍 DEBUG: Verify what we're storing
-            import sys
             print(f"🔍 [STORE_DB] database={database_name}, owner_names={database_owner_names}, storing={database_owner}, type={type(database_owner)}", file=sys.stderr)
             
             self.context.get().upsert("database_owner", database_owner)
         else:
             # Clear context to avoid residual owner from previous database
+            print(f"🔍 [DB_NO_OWNER] database={database_name}, clearing context", file=sys.stderr)
             self.context.get().upsert("database_owner", None)
 
         database_request = CreateDatabaseRequest(

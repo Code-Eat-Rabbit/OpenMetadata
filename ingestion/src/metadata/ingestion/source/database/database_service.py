@@ -596,6 +596,11 @@ class DatabaseServiceSource(
             EntityReferenceList with owner or None
         """
         try:
+            # 🔍 DEBUG
+            import sys
+            has_config = hasattr(self.source_config, "ownerConfig") and self.source_config.ownerConfig
+            print(f"🔍 [GET_DB_OWNER] database={database_name}, has_ownerConfig={has_config}", file=sys.stderr)
+            
             # Priority 1: Use ownerConfig if configured
             if (
                 hasattr(self.source_config, "ownerConfig")
@@ -608,6 +613,10 @@ class DatabaseServiceSource(
                     entity_name=database_name,
                     parent_owner=None,  # Database is top level
                 )
+                
+                # 🔍 DEBUG
+                print(f"🔍 [GET_DB_OWNER] owner_ref={owner_ref}, has_root={owner_ref.root if owner_ref else None}", file=sys.stderr)
+                
                 if owner_ref:
                     return owner_ref
 
