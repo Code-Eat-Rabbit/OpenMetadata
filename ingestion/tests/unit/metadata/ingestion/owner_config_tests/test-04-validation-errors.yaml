@@ -1,18 +1,16 @@
 # ============================================
-# Test Case 04: Owner Existence Validation
+# Test Case 04: Owner Type Validation
 # ============================================
-# Test Scenario: Test validation when owner doesn't exist
+# Test Scenario: Test validation of owner type constraints
 # Expected Behavior:
-#   Case 1: Valid owner exists
-#     - finance_db → "finance-team" (VALID, exists)
+#   Case 1: Multiple teams (INVALID)
+#     - finance_db: Log WARNING "Only ONE team allowed", use first team or fallback to default
 #   
-#   Case 2: Owner doesn't exist
-#     - revenue table → "nonexistent-team" (should log WARNING, fallback to inherited/default)
+#   Case 2: Mixed users and team (INVALID)
+#     - revenue: Log WARNING "Cannot mix users and teams", fallback to inherited/default
 #   
-#   Case 3: Valid owner exists
-#     - expenses table → "expense-team" (VALID, exists)
-#
-# Note: Modified for Pydantic 2.11.9 compatibility (single owner per entity)
+#   Case 3: Single team as string (VALID)
+#     - expenses: Works normally (single team is valid)
 
 source:
   type: postgres
@@ -34,14 +32,14 @@ source:
         default: "data-platform-team"
         
         database:
-          # Case 1: Valid team (should work)
-          "finance_db": "finance-team"
+          # Case 1: Multiple teams (INVALID - should log WARNING)
+          "finance_db": ["finance-team", "audit-team", "compliance-team"]
         
         table:
-          # Case 2: Nonexistent owner (should log WARNING and fallback)
-          "finance_db.accounting.revenue": "nonexistent-team"
+          # Case 2: Mixed users and team (INVALID - should log WARNING)
+          "finance_db.accounting.revenue": ["alice", "bob", "finance-team"]
           
-          # Case 3: Valid team (should work)
+          # Case 3: Single team as string (VALID)
           "finance_db.accounting.expenses": "expense-team"
         
         enableInheritance: true

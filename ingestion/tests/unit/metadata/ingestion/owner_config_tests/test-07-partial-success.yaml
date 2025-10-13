@@ -1,17 +1,14 @@
 # ============================================
-# Test Case 07: Resilience to Missing Owners
+# Test Case 07: Partial Success
 # ============================================
-# Test Scenario: Test ingestion resilience when some owners don't exist
+# Test Scenario: Test partial success strategy when some owners don't exist
 # Expected Behavior:
-#   - revenue table: Owner doesn't exist, should log WARNING and fallback to inherited/default
+#   - revenue table: Should have 2 owners (alice, bob), skip nonexistent users
 #     - Log: WARNING "Could not find owner: nonexistent-user-1"
-#   - expenses table: Owner exists, should work normally (charlie)
-#   - budgets table: Owner doesn't exist, should log WARNING and fallback
 #     - Log: WARNING "Could not find owner: nonexistent-user-2"
+#   - expenses table: Should have 2 owners (charlie, david)
 #
 # This test validates that ingestion continues when some owners are not found
-#
-# Note: Modified for Pydantic 2.11.9 compatibility (single owner per entity)
 
 source:
   type: postgres
@@ -28,19 +25,18 @@ source:
     config:
       type: DatabaseMetadata
       
-      # Owner Configuration - Resilience test
+      # Owner Configuration - Partial success test
       ownerConfig:
         default: "data-platform-team"
         
         table:
-          # Nonexistent owner (should log WARNING and fallback)
-          "finance_db.accounting.revenue": "nonexistent-user-1"
+          # Mix of existing and non-existing users
+          "finance_db.accounting.revenue": 
+            ["alice", "nonexistent-user-1", "bob", "nonexistent-user-2"]
           
-          # Existing owner (should work)
-          "finance_db.accounting.expenses": "charlie"
-          
-          # Another nonexistent owner (should log WARNING and fallback)
-          "finance_db.accounting.budgets": "nonexistent-user-2"
+          # All existing users
+          "finance_db.accounting.expenses":
+            ["charlie", "david"]
         
         enableInheritance: true
       

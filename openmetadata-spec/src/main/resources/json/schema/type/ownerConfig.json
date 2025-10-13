@@ -5,6 +5,25 @@
   "description": "Configuration for assigning owners to ingested entities following topology hierarchy with inheritance support",
   "javaType": "org.openmetadata.schema.type.OwnerConfig",
   "type": "object",
+  "definitions": {
+    "ownerValue": {
+      "description": "Single owner or list of owners. Business rules: multiple users allowed, only ONE team allowed, users and teams are mutually exclusive.",
+      "anyOf": [
+        {
+          "type": "string",
+          "description": "Single owner (user or team name/email)"
+        },
+        {
+          "type": "array",
+          "description": "Multiple owners (must be all users OR single team, cannot mix)",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
+      ]
+    }
+  },
   "properties": {
     "default": {
       "description": "Default owner applied to all entities when no specific owner is configured (user or team name/email)",
@@ -16,7 +35,7 @@
       "type": "string"
     },
     "database": {
-      "description": "Owner for database entities. Can be a single owner (string) for all databases, or a map of database names to their owner (string). Business rules: one owner per database (user or team name).",
+      "description": "Owner for database entities. Can be a single owner for all databases, or a map of database names to owner(s).",
       "anyOf": [
         {
           "type": "string",
@@ -24,21 +43,15 @@
         },
         {
           "type": "object",
-          "description": "Map of database names to their owner",
+          "description": "Map of database names to their owner(s)",
           "additionalProperties": {
-            "type": "string",
-            "description": "Owner name (user or team)"
-          },
-          "examples": [{
-            "sales_db": "sales-team",
-            "analytics_db": "analytics-team",
-            "finance_db": "finance-owner"
-          }]
+            "$ref": "#/definitions/ownerValue"
+          }
         }
       ]
     },
     "databaseSchema": {
-      "description": "Owner for schema entities. Can be a single owner (string) for all schemas, or a map of schema FQNs to their owner (string). Business rules: one owner per schema (user or team name).",
+      "description": "Owner for schema entities. Can be a single owner for all schemas, or a map of schema FQNs to owner(s).",
       "anyOf": [
         {
           "type": "string",
@@ -46,21 +59,15 @@
         },
         {
           "type": "object",
-          "description": "Map of schema names/FQNs to their owner",
+          "description": "Map of schema names/FQNs to their owner(s)",
           "additionalProperties": {
-            "type": "string",
-            "description": "Owner name (user or team)"
-          },
-          "examples": [{
-            "public": "public-schema-team",
-            "analytics_db.analytics_schema": "analytics-team",
-            "sales_db.sales_schema": "sales-team"
-          }]
+            "$ref": "#/definitions/ownerValue"
+          }
         }
       ]
     },
     "table": {
-      "description": "Owner for table entities. Can be a single owner (string) for all tables, or a map of table FQNs to their owner (string). Business rules: one owner per table (user or team name).",
+      "description": "Owner for table entities. Can be a single owner for all tables, or a map of table FQNs to owner(s).",
       "anyOf": [
         {
           "type": "string",
@@ -68,16 +75,10 @@
         },
         {
           "type": "object",
-          "description": "Map of table names/FQNs to their owner",
+          "description": "Map of table names/FQNs to their owner(s)",
           "additionalProperties": {
-            "type": "string",
-            "description": "Owner name (user or team)"
-          },
-          "examples": [{
-            "customers": "customer-data-team",
-            "sales_db.public.orders": "sales-team",
-            "analytics_db.public.metrics": "analytics-team"
-          }]
+            "$ref": "#/definitions/ownerValue"
+          }
         }
       ]
     },
@@ -113,13 +114,17 @@
     },
     {
       "default": "data-team",
+      "database": {
+        "shared_db": ["alice", "bob", "charlie"]
+      },
       "table": {
         "customers": "customer-team",
-        "orders": "order-owner",
-        "sales_db.public.products": "product-team"
+        "orders": ["user1", "user2"],
+        "sales_db.public.shared_data": ["alice", "bob", "charlie"]
       },
       "enableInheritance": true
     }
   ]
 }
+
 
