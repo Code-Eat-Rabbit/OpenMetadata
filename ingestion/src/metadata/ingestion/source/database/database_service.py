@@ -635,6 +635,10 @@ class DatabaseServiceSource(
         try:
             # Read database_owner directly from context
             parent_owner = getattr(self.context.get(), "database_owner", None)
+            
+            # 🔍 DEBUG: Check what we got from context
+            import sys
+            print(f"🔍 [GET_SCHEMA] schema={schema_name}, parent_owner from context={parent_owner}, type={type(parent_owner)}", file=sys.stderr)
 
             schema_fqn = f"{self.context.get().database}.{schema_name}"
 

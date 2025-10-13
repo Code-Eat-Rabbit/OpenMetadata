@@ -225,6 +225,11 @@ class CommonDbSourceService(
             database_owner_names = [owner.name for owner in database_owner_ref.root]
             # If only one owner, store as string; otherwise store as list
             database_owner = database_owner_names[0] if len(database_owner_names) == 1 else database_owner_names
+            
+            # 🔍 DEBUG: Verify what we're storing
+            import sys
+            print(f"🔍 [STORE_DB] database={database_name}, owner_names={database_owner_names}, storing={database_owner}, type={type(database_owner)}", file=sys.stderr)
+            
             self.context.get().upsert("database_owner", database_owner)
         else:
             # Clear context to avoid residual owner from previous database
