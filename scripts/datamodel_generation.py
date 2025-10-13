@@ -98,3 +98,34 @@ for file_path in DATETIME_AWARE_FILE_PATHS:
         content = content.replace("AwareDatetime", "datetime")
     with open(file_path, "w", encoding=UTF_8) as file_:
         file_.write(content)
+
+# Fix RootModel model_config issue for Pydantic 2.x
+# RootModel does not support model_config['extra']
+# See: https://errors.pydantic.dev/2.11/u/root-model-extra
+print("\n# Fixing RootModel model_config issues...")
+import glob
+
+generated_files = glob.glob(f"{ingestion_path}src/metadata/generated/**/*.py", recursive=True)
+fixed_count = 0
+
+for file_path in generated_files:
+    try:
+        with open(file_path, "r", encoding=UTF_8) as file_:
+            content = file_.read()
+        
+        # Check if file contains RootModel with model_config
+        if "RootModel" in content and "model_config" in content:
+            # Pattern to match: class XXX(RootModel[...]):
+            #                      model_config = ConfigDict(...)
+            pattern = r'(class\s+\w+\(RootModel\[[^\]]+\]\):)\s+(model_config\s*=\s*ConfigDict\([^)]*\)\s*)'
+            fixed_content = re.sub(pattern, r'\1\n    ', content, flags=re.MULTILINE)
+            
+            if content != fixed_content:
+                with open(file_path, "w", encoding=UTF_8) as file_:
+                    file_.write(fixed_content)
+                print(f"  ✓ Fixed RootModel in: {os.path.relpath(file_path)}")
+                fixed_count += 1
+    except Exception as e:
+        print(f"  ✗ Error processing {file_path}: {e}")
+
+print(f"# Fixed {fixed_count} file(s) with RootModel issues\n")
