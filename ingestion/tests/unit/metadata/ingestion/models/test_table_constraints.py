@@ -280,3 +280,143 @@ class TableConstraintsHandlerTest(TestCase):
             destination.tableConstraints[2].constraintType, ConstraintType.UNIQUE
         )
         self.assertEqual(destination.tableConstraints[2].columns, ["phone"])
+
+    def test_foreign_key_different_referred_columns(self):
+        """Test that foreign keys with different referredColumns are treated as different constraints"""
+        source = MockEntity(
+            tableConstraints=[
+                TableConstraint(
+                    constraintType=ConstraintType.FOREIGN_KEY,
+                    columns=["department_id"],
+                    referredColumns=["department.id"]
+                )
+            ]
+        )
+
+        destination = MockEntity(
+            tableConstraints=[
+                TableConstraint(
+                    constraintType=ConstraintType.FOREIGN_KEY,
+                    columns=["department_id"],
+                    referredColumns=["public.department.id"]  # Different referredColumns
+                )
+            ]
+        )
+
+        # Run the handler
+        _table_constraints_handler(source, destination)
+
+        # Should treat these as different constraints due to different referredColumns
+        # The destination constraint should be preserved (not replaced by source)
+        self.assertEqual(len(destination.tableConstraints), 1)
+        self.assertEqual(
+            destination.tableConstraints[0].constraintType, ConstraintType.FOREIGN_KEY
+        )
+        self.assertEqual(destination.tableConstraints[0].columns, ["department_id"])
+        self.assertEqual(
+            destination.tableConstraints[0].referredColumns, ["public.department.id"]
+        )
+
+    def test_foreign_key_same_referred_columns(self):
+        """Test that foreign keys with same referredColumns are treated as same constraints"""
+        source = MockEntity(
+            tableConstraints=[
+                TableConstraint(
+                    constraintType=ConstraintType.FOREIGN_KEY,
+                    columns=["department_id"],
+                    referredColumns=["department.id"]
+                )
+            ]
+        )
+
+        destination = MockEntity(
+            tableConstraints=[
+                TableConstraint(
+                    constraintType=ConstraintType.FOREIGN_KEY,
+                    columns=["department_id"],
+                    referredColumns=["department.id"]  # Same referredColumns
+                )
+            ]
+        )
+
+        # Run the handler
+        _table_constraints_handler(source, destination)
+
+        # Should treat these as same constraints due to same referredColumns
+        self.assertEqual(len(destination.tableConstraints), 1)
+        self.assertEqual(
+            destination.tableConstraints[0].constraintType, ConstraintType.FOREIGN_KEY
+        )
+        self.assertEqual(destination.tableConstraints[0].columns, ["department_id"])
+        self.assertEqual(
+            destination.tableConstraints[0].referredColumns, ["department.id"]
+        )
+
+    def test_mixed_constraints_with_foreign_keys(self):
+        """Test complex scenario with mixed constraint types including foreign keys with referredColumns"""
+        source = MockEntity(
+            tableConstraints=[
+                TableConstraint(
+                    constraintType=ConstraintType.PRIMARY_KEY, columns=["id"]
+                ),
+                TableConstraint(
+                    constraintType=ConstraintType.FOREIGN_KEY,
+                    columns=["department_id"],
+                    referredColumns=["department.id"]
+                ),
+                TableConstraint(
+                    constraintType=ConstraintType.FOREIGN_KEY,
+                    columns=["manager_id"],
+                    referredColumns=["employee.id"]
+                ),
+            ]
+        )
+
+        destination = MockEntity(
+            tableConstraints=[
+                TableConstraint(
+                    constraintType=ConstraintType.FOREIGN_KEY,
+                    columns=["manager_id"],
+                    referredColumns=["employee.id"]
+                ),
+                TableConstraint(
+                    constraintType=ConstraintType.PRIMARY_KEY, columns=["id"]
+                ),
+                TableConstraint(
+                    constraintType=ConstraintType.FOREIGN_KEY,
+                    columns=["department_id"],
+                    referredColumns=["public.department.id"]  # Different referredColumns
+                ),
+            ]
+        )
+
+        # Run the handler
+        _table_constraints_handler(source, destination)
+
+        # Should rearrange to match source order and preserve different referredColumns
+        self.assertEqual(len(destination.tableConstraints), 3)
+        
+        # First constraint should be PRIMARY_KEY (from source order)
+        self.assertEqual(
+            destination.tableConstraints[0].constraintType, ConstraintType.PRIMARY_KEY
+        )
+        self.assertEqual(destination.tableConstraints[0].columns, ["id"])
+        
+        # Second constraint should be FOREIGN_KEY with manager_id (from source order)
+        self.assertEqual(
+            destination.tableConstraints[1].constraintType, ConstraintType.FOREIGN_KEY
+        )
+        self.assertEqual(destination.tableConstraints[1].columns, ["manager_id"])
+        self.assertEqual(
+            destination.tableConstraints[1].referredColumns, ["employee.id"]
+        )
+        
+        # Third constraint should be FOREIGN_KEY with department_id but different referredColumns
+        # This should be treated as a new constraint and added at the end
+        self.assertEqual(
+            destination.tableConstraints[2].constraintType, ConstraintType.FOREIGN_KEY
+        )
+        self.assertEqual(destination.tableConstraints[2].columns, ["department_id"])
+        self.assertEqual(
+            destination.tableConstraints[2].referredColumns, ["public.department.id"]
+        )

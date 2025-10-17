@@ -479,10 +479,33 @@ def rearrange_attributes(final_attributes: List[T], source_attributes: List[T]):
     return source_staging_list + destination_staging_list
 
 
+def _get_constraint_key(constraint):
+    """
+    Generate a unique key for a table constraint.
+
+    The key includes constraintType, columns, and referredColumns (if present)
+    to ensure proper matching of foreign key constraints.
+
+    Args:
+        constraint: TableConstraint object
+
+    Returns:
+        str: Unique key for the constraint
+    """
+    key = f"{constraint.constraintType}:{','.join(sorted(constraint.columns))}"
+    # Include referredColumns in the key for foreign key constraints to ensure proper matching
+    if hasattr(constraint, "referredColumns") and constraint.referredColumns:
+        key += f":{','.join(sorted(constraint.referredColumns))}"
+    return key
+
+
 def _table_constraints_handler(source: T, destination: T):
     """
     Handle table constraints patching properly.
     This ensures we only perform allowed operations on constraints and maintain the structure.
+
+    Fixed to include referredColumns in constraint matching to prevent unnecessary
+    version updates for foreign key constraints (issue #17987).
     """
     if not hasattr(source, "tableConstraints") or not hasattr(
         destination, "tableConstraints"
@@ -498,8 +521,8 @@ def _table_constraints_handler(source: T, destination: T):
     # Create a dictionary of source constraints for easy lookup
     source_constraints_dict = {}
     for constraint in source_table_constraints:
-        # Create a unique key based on constraintType and columns
-        key = f"{constraint.constraintType}:{','.join(sorted(constraint.columns))}"
+        # Create a unique key based on constraintType, columns, and referredColumns
+        key = _get_constraint_key(constraint)
         source_constraints_dict[key] = constraint
 
     # Rearrange destination constraints to match source order when possible
@@ -507,16 +530,16 @@ def _table_constraints_handler(source: T, destination: T):
 
     # First add constraints that exist in both source and destination (preserving order from source)
     for source_constraint in source_table_constraints:
-        key = f"{source_constraint.constraintType}:{','.join(sorted(source_constraint.columns))}"
+        key = _get_constraint_key(source_constraint)
         for dest_constraint in destination_table_constraints:
-            dest_key = f"{dest_constraint.constraintType}:{','.join(sorted(dest_constraint.columns))}"
+            dest_key = _get_constraint_key(dest_constraint)
             if key == dest_key:
                 rearranged_constraints.append(dest_constraint)
                 break
 
     # Then add new constraints from destination that don't exist in source
     for dest_constraint in destination_table_constraints:
-        dest_key = f"{dest_constraint.constraintType}:{','.join(sorted(dest_constraint.columns))}"
+        dest_key = _get_constraint_key(dest_constraint)
         if dest_key not in source_constraints_dict:
             rearranged_constraints.append(dest_constraint)
 
