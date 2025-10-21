@@ -19,6 +19,7 @@ ingestion based on flexible, hierarchical rules.
 Replaces the bash/YAML-based tests previously in owner_config_tests/ directory.
 """
 
+import uuid
 from typing import Any, Dict, List, Optional, Union
 from unittest import TestCase
 from unittest.mock import MagicMock, Mock, patch
@@ -199,7 +200,7 @@ class TestOwnerConfig(TestCase):
     def _create_mock_user(self, name: str, email: str) -> User:
         """Create a mock User entity"""
         return User(
-            id="user-" + name,
+            id=uuid.uuid4(),
             name=EntityName(name),
             fullyQualifiedName=FullyQualifiedEntityName(name),
             email=Email(email),
@@ -209,7 +210,7 @@ class TestOwnerConfig(TestCase):
     def _create_mock_team(self, name: str, display_name: str) -> Team:
         """Create a mock Team entity"""
         return Team(
-            id="team-" + name,
+            id=uuid.uuid4(),
             name=EntityName(name),
             fullyQualifiedName=FullyQualifiedEntityName(name),
             displayName=display_name,
