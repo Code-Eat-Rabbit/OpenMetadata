@@ -126,6 +126,26 @@ def build_test_workflow_config(
     }
 
 
+def unwrap_owner_value(value: Any) -> Any:
+    """
+    Unwrap OwnerValue Pydantic model to get actual value.
+    
+    OwnerValue wraps the actual values in nested root attributes:
+    OwnerValue(root=OwnerValue1(root=['alice', 'bob']))
+    
+    Args:
+        value: Potentially wrapped OwnerValue object
+    
+    Returns:
+        Unwrapped actual value (string, list, or dict)
+    """
+    if hasattr(value, 'root'):
+        if hasattr(value.root, 'root'):
+            return value.root.root
+        return value.root
+    return value
+
+
 class TestOwnerConfig(TestCase):
     """
     Test suite for hierarchical owner configuration in database ingestion.
@@ -323,7 +343,8 @@ class TestOwnerConfig(TestCase):
         db_config = config.source.sourceConfig.config.ownerConfig.database
         
         if isinstance(db_config, dict):
-            finance_owners = db_config.get("finance_db")
+            finance_owners = unwrap_owner_value(db_config.get("finance_db"))
+            assert finance_owners is not None
             assert isinstance(finance_owners, list)
             assert len(finance_owners) == 2
             assert "alice" in finance_owners
@@ -460,7 +481,10 @@ class TestOwnerConfig(TestCase):
         table_config = config.source.sourceConfig.config.ownerConfig.table
         
         if isinstance(table_config, dict):
-            revenue_owners = table_config.get("finance_db.accounting.revenue")
+            revenue_owners = unwrap_owner_value(
+                table_config.get("finance_db.accounting.revenue")
+            )
+            assert revenue_owners is not None
             assert isinstance(revenue_owners, list)
             assert len(revenue_owners) == 4
 
@@ -506,7 +530,7 @@ class TestOwnerConfig(TestCase):
             assert "finance_db" in db_config
             assert "marketing_db" in db_config
             
-            marketing_owners = db_config.get("marketing_db")
+            marketing_owners = unwrap_owner_value(db_config.get("marketing_db"))
             if isinstance(marketing_owners, list):
                 assert len(marketing_owners) == 2
 
@@ -541,7 +565,9 @@ class TestOwnerConfig(TestCase):
         
         assert config.source.sourceConfig.config.ownerConfig is not None
         
-        db_config = config.source.sourceConfig.config.ownerConfig.database
+        db_config = unwrap_owner_value(
+            config.source.sourceConfig.config.ownerConfig.database
+        )
         assert db_config == "default-db-owner"
         
         schema_config = config.source.sourceConfig.config.ownerConfig.databaseSchema
