@@ -10,7 +10,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-import Icon, { DownOutlined } from '@ant-design/icons';
+import Icon, { CopyOutlined, DownOutlined, LinkOutlined } from '@ant-design/icons';
 import { Button, Dropdown, Space, Tooltip, Typography } from 'antd';
 import ButtonGroup from 'antd/lib/button/button-group';
 import { ItemType } from 'antd/lib/menu/hooks/useItems';
@@ -67,7 +67,7 @@ import {
   getGlossaryTermsVersionsPath,
   getGlossaryVersionsPath,
 } from '../../../utils/RouterUtils';
-import { showErrorToast } from '../../../utils/ToastUtils';
+import { showErrorToast, showSuccessToast } from '../../../utils/ToastUtils';
 import { useRequiredParams } from '../../../utils/useRequiredParams';
 import { TitleBreadcrumbProps } from '../../common/TitleBreadcrumb/TitleBreadcrumb.interface';
 import { useGenericContext } from '../../Customization/GenericProvider/GenericProvider';
@@ -291,7 +291,82 @@ const GlossaryHeader = ({
     }
   }, [selectedData]);
 
+  const handleCopyFqnLink = useCallback(() => {
+    if (!selectedData?.fullyQualifiedName) {
+      showErrorToast(t('message.entity-name-not-found'));
+      return;
+    }
+    
+    const fqnUrl = `${window.location.origin}/glossary/${encodeURIComponent(selectedData.fullyQualifiedName)}`;
+    
+    navigator.clipboard.writeText(fqnUrl)
+      .then(() => {
+        showSuccessToast(t('message.fqn-link-copied'));
+      })
+      .catch(() => {
+        showErrorToast(t('message.copy-link-error'));
+      });
+  }, [selectedData, t]);
+
+  const handleCopyPermanentLink = useCallback(() => {
+    if (!selectedData?.id) {
+      showErrorToast(t('message.entity-id-not-found'));
+      return;
+    }
+    
+    const permanentUrl = `${window.location.origin}/glossary/${selectedData.id}`;
+    
+    navigator.clipboard.writeText(permanentUrl)
+      .then(() => {
+        showSuccessToast(t('message.permanent-link-copied'));
+      })
+      .catch(() => {
+        showErrorToast(t('message.copy-link-error'));
+      });
+  }, [selectedData, t]);
+
+  const copyLinkMenuItems: ItemType[] = [
+    {
+      label: (
+        <ManageButtonItemLabel
+          description={t('message.copy-fqn-link-description')}
+          icon={LinkOutlined}
+          id="copy-fqn-link-button"
+          name={t('label.copy-fqn-link')}
+        />
+      ),
+      key: 'copy-fqn-link-button',
+      onClick: (e) => {
+        e.domEvent.stopPropagation();
+        handleCopyFqnLink();
+        setShowActions(false);
+      },
+    },
+    {
+      label: (
+        <ManageButtonItemLabel
+          description={t('message.copy-permanent-link-description')}
+          icon={CopyOutlined}
+          id="copy-permanent-link-button"
+          name={t('label.copy-permanent-link')}
+        />
+      ),
+      key: 'copy-permanent-link-button',
+      onClick: (e) => {
+        e.domEvent.stopPropagation();
+        handleCopyPermanentLink();
+        setShowActions(false);
+      },
+    },
+  ];
+
   const manageButtonContent: ItemType[] = [
+    {
+      label: t('label.copy-link'),
+      key: 'copy-link-menu',
+      icon: <Icon component={LinkOutlined} />,
+      children: copyLinkMenuItems,
+    },
     ...(isGlossary && importExportPermissions
       ? ([
           {
