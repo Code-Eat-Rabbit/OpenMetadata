@@ -10,7 +10,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-import Icon, { CopyOutlined, DownOutlined, LinkOutlined } from '@ant-design/icons';
+import Icon, { DownOutlined } from '@ant-design/icons';
 import { Button, Dropdown, Space, Tooltip, Typography } from 'antd';
 import ButtonGroup from 'antd/lib/button/button-group';
 import { ItemType } from 'antd/lib/menu/hooks/useItems';
@@ -30,6 +30,8 @@ import { ReactComponent as ImportIcon } from '../../../assets/svg/ic-import.svg'
 import { ReactComponent as VersionIcon } from '../../../assets/svg/ic-version.svg';
 import { ReactComponent as IconDropdown } from '../../../assets/svg/menu.svg';
 import { ReactComponent as StyleIcon } from '../../../assets/svg/style.svg';
+import { ReactComponent as LinkIcon } from '../../../assets/svg/link.svg';
+import { ReactComponent as CopyIcon } from '../../../assets/svg/icon-copy.svg';
 import { ManageButtonItemLabel } from '../../../components/common/ManageButtonContentItem/ManageButtonContentItem.component';
 import { useEntityExportModalProvider } from '../../../components/Entity/EntityExportModalProvider/EntityExportModalProvider.component';
 import { EntityHeader } from '../../../components/Entity/EntityHeader/EntityHeader.component';
@@ -330,7 +332,7 @@ const GlossaryHeader = ({
       label: (
         <ManageButtonItemLabel
           description={t('message.copy-fqn-link-description')}
-          icon={LinkOutlined}
+          icon={LinkIcon}
           id="copy-fqn-link-button"
           name={t('label.copy-fqn-link')}
         />
@@ -346,7 +348,7 @@ const GlossaryHeader = ({
       label: (
         <ManageButtonItemLabel
           description={t('message.copy-permanent-link-description')}
-          icon={CopyOutlined}
+          icon={CopyIcon}
           id="copy-permanent-link-button"
           name={t('label.copy-permanent-link')}
         />
@@ -364,7 +366,7 @@ const GlossaryHeader = ({
     {
       label: t('label.copy-link'),
       key: 'copy-link-menu',
-      icon: <Icon component={LinkOutlined} />,
+      icon: <Icon component={LinkIcon} />,
       children: copyLinkMenuItems,
     },
     ...(isGlossary && importExportPermissions
