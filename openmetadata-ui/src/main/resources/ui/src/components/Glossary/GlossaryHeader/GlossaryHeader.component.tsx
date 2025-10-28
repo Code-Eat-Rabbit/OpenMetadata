@@ -30,8 +30,6 @@ import { ReactComponent as ImportIcon } from '../../../assets/svg/ic-import.svg'
 import { ReactComponent as VersionIcon } from '../../../assets/svg/ic-version.svg';
 import { ReactComponent as IconDropdown } from '../../../assets/svg/menu.svg';
 import { ReactComponent as StyleIcon } from '../../../assets/svg/style.svg';
-import { ReactComponent as LinkIcon } from '../../../assets/svg/link.svg';
-import { ReactComponent as CopyIcon } from '../../../assets/svg/icon-copy.svg';
 import { ManageButtonItemLabel } from '../../../components/common/ManageButtonContentItem/ManageButtonContentItem.component';
 import { useEntityExportModalProvider } from '../../../components/Entity/EntityExportModalProvider/EntityExportModalProvider.component';
 import { EntityHeader } from '../../../components/Entity/EntityHeader/EntityHeader.component';
@@ -69,7 +67,7 @@ import {
   getGlossaryTermsVersionsPath,
   getGlossaryVersionsPath,
 } from '../../../utils/RouterUtils';
-import { showErrorToast, showSuccessToast } from '../../../utils/ToastUtils';
+import { showErrorToast } from '../../../utils/ToastUtils';
 import { useRequiredParams } from '../../../utils/useRequiredParams';
 import { TitleBreadcrumbProps } from '../../common/TitleBreadcrumb/TitleBreadcrumb.interface';
 import { useGenericContext } from '../../Customization/GenericProvider/GenericProvider';
@@ -293,80 +291,7 @@ const GlossaryHeader = ({
     }
   }, [selectedData]);
 
-  const handleCopyFqnLink = useCallback(() => {
-    if (!selectedData?.fullyQualifiedName) {
-      showErrorToast(t('message.entity-name-not-found'));
-      return;
-    }
-    
-    const fqnUrl = `${window.location.origin}/glossary/${encodeURIComponent(selectedData.fullyQualifiedName)}`;
-    
-    navigator.clipboard.writeText(fqnUrl)
-      .then(() => {
-        showSuccessToast(t('message.fqn-link-copied'));
-      })
-      .catch(() => {
-        showErrorToast(t('message.copy-link-error'));
-      });
-  }, [selectedData, t]);
-
-  const handleCopyPermanentLink = useCallback(() => {
-    if (!selectedData?.id) {
-      showErrorToast(t('message.entity-id-not-found'));
-      return;
-    }
-    
-    const permanentUrl = `${window.location.origin}/glossary/${selectedData.id}`;
-    
-    navigator.clipboard.writeText(permanentUrl)
-      .then(() => {
-        showSuccessToast(t('message.permanent-link-copied'));
-      })
-      .catch(() => {
-        showErrorToast(t('message.copy-link-error'));
-      });
-  }, [selectedData, t]);
-
-  const copyLinkMenuItems: ItemType[] = [
-    {
-      label: (
-        <ManageButtonItemLabel
-          description={t('message.copy-fqn-link-description')}
-          icon={LinkIcon}
-          id="copy-fqn-link-button"
-          name={t('label.copy-fqn-link')}
-        />
-      ),
-      key: 'copy-fqn-link-button',
-      onClick: (e) => {
-        e.domEvent.stopPropagation();
-        handleCopyFqnLink();
-        setShowActions(false);
-      },
-    },
-    {
-      label: (
-        <ManageButtonItemLabel
-          description={t('message.copy-permanent-link-description')}
-          icon={CopyIcon}
-          id="copy-permanent-link-button"
-          name={t('label.copy-permanent-link')}
-        />
-      ),
-      key: 'copy-permanent-link-button',
-      onClick: (e) => {
-        e.domEvent.stopPropagation();
-        handleCopyPermanentLink();
-        setShowActions(false);
-      },
-    },
-  ];
-
   const manageButtonContent: ItemType[] = [
-    ...copyLinkMenuItems,
-    {
-      type: 'divider',
-    },
     ...(isGlossary && importExportPermissions
       ? ([
           {

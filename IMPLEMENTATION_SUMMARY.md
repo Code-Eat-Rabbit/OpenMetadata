@@ -8,36 +8,76 @@
 
 ## 修改文件清单
 
-### 1. 前端组件修改
+### ⭐ 重要更新：按钮位置调整
+
+**变更说明：** 根据用户反馈，复制链接功能已从 Manage 菜单移至**标题旁边的复制按钮**位置，更显眼、更易访问。
+
+详细说明请查看：[COPY_BUTTON_RELOCATION_UPDATE.md](/workspace/COPY_BUTTON_RELOCATION_UPDATE.md)
+
+---
+
+### 1. 实体标题组件修改 ⭐ 核心变更
+
+**文件：** `openmetadata-ui/src/main/resources/ui/src/components/Entity/EntityHeaderTitle/EntityHeaderTitle.component.tsx`
+
+**主要修改：**
+
+1. **新增导入：**
+   - `DownOutlined` - 下拉箭头图标
+   - `Dropdown` - 下拉菜单组件
+   - `ItemType` - 菜单项类型
+   - `LinkIcon`, `CopyIcon` - SVG 图标
+   - `showSuccessToast`, `showErrorToast` - Toast 提示
+
+2. **新增 props：**
+   - `entityId?: string` - 实体的 UUID
+   - `entityFqn?: string` - 实体的 FQN
+
+3. **新增函数：**
+   - `handleCopyFqnLink()` - 复制 FQN 链接
+   - `handleCopyPermanentLink()` - 复制永久链接（UUID）
+
+4. **修改复制按钮：**
+   - 当 `entityId` 和 `entityFqn` 都存在时 → 显示下拉菜单
+   - 否则 → 保持原始单一按钮行为（向后兼容）
+
+**文件：** `openmetadata-ui/src/main/resources/ui/src/components/Entity/EntityHeaderTitle/EntityHeaderTitle.interface.ts`
+
+**变更：** 添加 `entityId` 和 `entityFqn` 可选 props
+
+---
+
+### 2. 实体头部组件修改
+
+**文件：** `openmetadata-ui/src/main/resources/ui/src/components/Entity/EntityHeader/EntityHeader.component.tsx`
+
+**变更：**
+- 更新 Props interface，`entityData` 添加 `id?: string` 字段
+- 将 `entityData.id` 和 `entityData.fullyQualifiedName` 传递给 `EntityHeaderTitle`
+
+---
+
+### 3. 词汇表头部组件清理
 
 **文件：** `openmetadata-ui/src/main/resources/ui/src/components/Glossary/GlossaryHeader/GlossaryHeader.component.tsx`
 
 **主要修改：**
 
-1. **新增导入：**
-   - `CopyOutlined` - 复制永久链接的图标
-   - `LinkOutlined` - 复制 FQN 链接的图标
-   - `showSuccessToast` - 显示成功提示
+1. **移除内容：**
+   - ❌ 删除 `handleCopyFqnLink()` 函数
+   - ❌ 删除 `handleCopyPermanentLink()` 函数
+   - ❌ 删除 `copyLinkMenuItems` 数组
+   - ❌ 从 Manage 菜单中移除复制链接选项
+   - ❌ 清理不再使用的导入（`LinkIcon`, `CopyIcon`, `showSuccessToast`）
 
-2. **新增函数：**
-   - `handleCopyFqnLink()` - 复制基于名称的链接
-   - `handleCopyPermanentLink()` - 复制基于 UUID 的永久链接
+2. **原因：**
+   - 复制链接功能已移至 `EntityHeaderTitle` 组件
+   - GlossaryHeader 不再需要处理复制链接逻辑
+   - 代码更简洁，职责更清晰
 
-3. **新增菜单项：**
-   - `copyLinkMenuItems` - 包含两个选项的下拉菜单
-   - 在 `manageButtonContent` 顶部添加"复制链接"菜单
+---
 
-**关键逻辑：**
-
-```typescript
-// FQN 链接：始终从 selectedData.fullyQualifiedName 构建
-const fqnUrl = `${window.location.origin}/glossary/${encodeURIComponent(selectedData.fullyQualifiedName)}`;
-
-// 永久链接：始终从 selectedData.id 构建
-const permanentUrl = `${window.location.origin}/glossary/${selectedData.id}`;
-```
-
-### 2. 国际化文本 - 英文
+### 4. 国际化文本 - 英文
 
 **文件：** `openmetadata-ui/src/main/resources/ui/src/locale/languages/en-us.json`
 
@@ -55,7 +95,7 @@ const permanentUrl = `${window.location.origin}/glossary/${selectedData.id}`;
 - `fqn-link-copied`: "Name-based link copied to clipboard"
 - `permanent-link-copied`: "Permanent link copied to clipboard"
 
-### 3. 国际化文本 - 中文
+### 5. 国际化文本 - 中文
 
 **文件：** `openmetadata-ui/src/main/resources/ui/src/locale/languages/zh-cn.json`
 
@@ -77,14 +117,21 @@ const permanentUrl = `${window.location.origin}/glossary/${selectedData.id}`;
 
 ## 功能说明
 
-### UI 交互流程
+### UI 交互流程 ⭐ 最新版本
 
 1. 用户打开任意词汇表术语详情页面
-2. 点击页面右上角的 "Manage" 按钮（三点图标 ⋮）
-3. 在下拉菜单顶部直接看到两个链接选项：
+2. 在标题旁边找到 **复制按钮**（📋图标）
+3. 点击复制按钮，会弹出下拉菜单：
    - **🔗 Copy Name-based Link** - 复制 FQN 格式的 URL（带链接图标）
    - **📋 Copy Permanent Link** - 复制 UUID 格式的 URL（带复制图标）
 4. 点击任一选项即可复制对应格式的链接
+
+**位置示意：**
+```
+术语名称 [📋▼] [⭐ Follow]     [版本] [⋮ Manage]
+         ↑
+    复制按钮（新位置）
+```
 
 ### 两种链接的区别
 
