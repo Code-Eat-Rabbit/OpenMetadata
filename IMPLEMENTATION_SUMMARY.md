@@ -80,11 +80,11 @@ const permanentUrl = `${window.location.origin}/glossary/${selectedData.id}`;
 ### UI 交互流程
 
 1. 用户打开任意词汇表术语详情页面
-2. 点击页面右上角的 "Manage" 按钮（三点图标）
-3. 在下拉菜单顶部看到新增的 "复制链接" 菜单项
-4. 展开后有两个选项：
-   - **复制名称链接** - 复制 FQN 格式的 URL
-   - **复制永久链接** - 复制 UUID 格式的 URL
+2. 点击页面右上角的 "Manage" 按钮（三点图标 ⋮）
+3. 在下拉菜单顶部直接看到两个链接选项：
+   - **🔗 Copy Name-based Link** - 复制 FQN 格式的 URL（带链接图标）
+   - **📋 Copy Permanent Link** - 复制 UUID 格式的 URL（带复制图标）
+4. 点击任一选项即可复制对应格式的链接
 
 ### 两种链接的区别
 
@@ -128,6 +128,18 @@ const permanentUrl = `${window.location.origin}/glossary/${selectedData.id}`;
 - ✅ 永久链接仍然有效
 - ✅ 页面显示重命名后的术语内容
 - ❌ 旧的 FQN 链接会返回 404
+
+---
+
+## 已修复的问题
+
+### 图标显示问题 ✅
+- **问题：** 初版使用 Ant Design 图标（`LinkOutlined`, `CopyOutlined`）导致不显示
+- **修复：** 改用项目自带的 SVG React 组件（`link.svg`, `icon-copy.svg`）
+
+### 菜单结构调整 ✅
+- **问题：** 子菜单（`children`）方式与 `ManageButtonItemLabel` 不兼容
+- **修复：** 将两个选项平铺到主菜单顶部，用分隔符区分
 
 ---
 

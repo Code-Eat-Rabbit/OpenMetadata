@@ -363,11 +363,9 @@ const GlossaryHeader = ({
   ];
 
   const manageButtonContent: ItemType[] = [
+    ...copyLinkMenuItems,
     {
-      label: t('label.copy-link'),
-      key: 'copy-link-menu',
-      icon: <Icon component={LinkIcon} />,
-      children: copyLinkMenuItems,
+      type: 'divider',
     },
     ...(isGlossary && importExportPermissions
       ? ([
