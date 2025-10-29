@@ -53,14 +53,38 @@ Term Name [📋▼] [⭐ Follow]
 3. **EntityHeader.component.tsx**
    - Pass `entityData.id` and `entityData.fullyQualifiedName` to EntityHeaderTitle
 
-### Translation Files (1 file - English only)
+### Translation Files (18 files - All languages) ✅
 
-4. **en-us.json**
-   - `copy-fqn-link`: "Copy URL based on FQN"
-   - `copy-permanent-link`: "Copy URL based on ID"
-   - `copy-link`: "Copy Link"
+Added translations to all language files:
 
-**Note:** Chinese translations were removed per user request. The feature uses existing generic messages:
+**Translation Keys Added:**
+- `copy-fqn-link`: "Copy URL based on FQN"
+- `copy-permanent-link`: "Copy URL based on ID"
+- `copy-link`: "Copy Link"
+
+**Supported Languages (18):**
+- 🇺🇸 en-us (English)
+- 🇨🇳 zh-cn (简体中文)
+- 🇹🇼 zh-tw (繁體中文)
+- 🇯🇵 ja-jp (日本語)
+- 🇰🇷 ko-kr (한국어)
+- 🇫🇷 fr-fr (Français)
+- 🇩🇪 de-de (Deutsch)
+- 🇪🇸 es-es (Español)
+- 🇧🇷 pt-br (Português BR)
+- 🇵🇹 pt-pt (Português PT)
+- 🇷🇺 ru-ru (Русский)
+- 🇹🇷 tr-tr (Türkçe)
+- 🇳🇱 nl-nl (Nederlands)
+- 🇮🇱 he-he (עברית)
+- 🇹🇭 th-th (ไทย)
+- 🇮🇳 mr-in (मराठी)
+- 🇮🇷 pr-pr (فارسی)
+- gl-es (Galego)
+
+**Note:** All languages use English text for technical terms (FQN, ID, URL) as these are universally understood.
+
+**Toast Messages:** Uses existing generic translations:
 - Success: `message.copied-to-clipboard`
 - Error: `server.unexpected-error`
 
