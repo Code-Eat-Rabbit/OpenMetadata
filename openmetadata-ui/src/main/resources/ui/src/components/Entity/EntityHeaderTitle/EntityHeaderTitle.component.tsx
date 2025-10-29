@@ -61,7 +61,7 @@ const EntityHeaderTitle = ({
   const { t } = useTranslation();
   const location = useCustomLocation();
   const [copyTooltip, setCopyTooltip] = useState<string>();
-  const [showCopyDropdown, setShowCopyDropdown] = useState(false);
+  const [showCopyUrlDropdown, setShowCopyUrlDropdown] = useState(false);
   const { onCopyToClipBoard } = useClipboard(window.location.href);
 
   const handleShareButtonClick = async () => {
@@ -70,7 +70,7 @@ const EntityHeaderTitle = ({
     setTimeout(() => setCopyTooltip(''), 2000);
   };
 
-  const handleCopyFqnLink = async () => {
+  const handleCopyUrlBasedOnFqn = async () => {
     if (!entityFqn) {
       return;
     }
@@ -83,23 +83,23 @@ const EntityHeaderTitle = ({
     } catch {
       showErrorToast(t('server.unexpected-error'));
     }
-    setShowCopyDropdown(false);
+    setShowCopyUrlDropdown(false);
   };
 
-  const handleCopyPermanentLink = async () => {
+  const handleCopyUrlBasedOnId = async () => {
     if (!entityId) {
       return;
     }
     
-    const permanentUrl = `${window.location.origin}/glossary/${entityId}`;
+    const idBasedUrl = `${window.location.origin}/glossary/${entityId}`;
     
     try {
-      await navigator.clipboard.writeText(permanentUrl);
+      await navigator.clipboard.writeText(idBasedUrl);
       showSuccessToast(t('message.copied-to-clipboard'));
     } catch {
       showErrorToast(t('server.unexpected-error'));
     }
-    setShowCopyDropdown(false);
+    setShowCopyUrlDropdown(false);
   };
 
   const isTourRoute = useMemo(
@@ -212,32 +212,32 @@ const EntityHeaderTitle = ({
               menu={{
                 items: [
                   {
-                    key: 'copy-fqn-link',
+                    key: 'copy-url-based-on-fqn',
                     label: (
                       <div className="d-flex items-center gap-2" style={{ fontSize: '12px' }}>
                         <Icon component={LinkIcon} style={{ fontSize: '12px' }} />
                         <span>{t('label.copy-fqn-link')}</span>
                       </div>
                     ),
-                    onClick: handleCopyFqnLink,
+                    onClick: handleCopyUrlBasedOnFqn,
                   },
                   {
-                    key: 'copy-permanent-link',
+                    key: 'copy-url-based-on-id',
                     label: (
                       <div className="d-flex items-center gap-2" style={{ fontSize: '12px' }}>
                         <Icon component={CopyIcon} style={{ fontSize: '12px' }} />
                         <span>{t('label.copy-permanent-link')}</span>
                       </div>
                     ),
-                    onClick: handleCopyPermanentLink,
+                    onClick: handleCopyUrlBasedOnId,
                   },
                 ] as ItemType[],
               }}
-              open={showCopyDropdown}
+              open={showCopyUrlDropdown}
               overlayStyle={{ minWidth: '180px' }}
               placement="bottomRight"
               trigger={['click']}
-              onOpenChange={setShowCopyDropdown}>
+              onOpenChange={setShowCopyUrlDropdown}>
               <Tooltip
                 placement="topRight"
                 title={t('label.copy-link')}>

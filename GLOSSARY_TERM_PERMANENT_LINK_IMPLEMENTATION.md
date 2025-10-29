@@ -68,6 +68,25 @@ Term Name [📋▼] [⭐ Follow]
 
 ## Technical Implementation
 
+### Variable Naming Conventions
+
+All variables use consistent, descriptive names aligned with UI text:
+
+**Functions:**
+- `handleCopyUrlBasedOnFqn()` - Handles FQN URL copy
+- `handleCopyUrlBasedOnId()` - Handles ID URL copy
+
+**State Variables:**
+- `showCopyUrlDropdown` - Controls dropdown menu visibility
+
+**URL Variables:**
+- `fqnUrl` - FQN-based URL string
+- `idBasedUrl` - ID-based URL string
+
+**Menu Item Keys:**
+- `copy-url-based-on-fqn` - FQN option identifier
+- `copy-url-based-on-id` - ID option identifier
+
 ### Key Features
 
 1. **Backward Compatible**
