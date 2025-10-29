@@ -10,7 +10,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-import Icon, { DownOutlined, ExclamationCircleFilled } from '@ant-design/icons';
+import Icon, { ExclamationCircleFilled } from '@ant-design/icons';
 import { Badge, Button, Col, Dropdown, Row, Tooltip, Typography } from 'antd';
 import { ItemType } from 'antd/lib/menu/hooks/useItems';
 import classNames from 'classnames';
@@ -19,18 +19,18 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { ReactComponent as ShareIcon } from '../../../assets/svg/copy-right.svg';
-import { ReactComponent as LinkIcon } from '../../../assets/svg/link.svg';
-import { ReactComponent as CopyIcon } from '../../../assets/svg/icon-copy.svg';
 import { ReactComponent as IconExternalLink } from '../../../assets/svg/external-link-grey.svg';
 import { ReactComponent as StarFilledIcon } from '../../../assets/svg/ic-star-filled.svg';
+import { ReactComponent as CopyIcon } from '../../../assets/svg/icon-copy.svg';
+import { ReactComponent as LinkIcon } from '../../../assets/svg/link.svg';
 import { ROUTES } from '../../../constants/constants';
 import { EntityType } from '../../../enums/entity.enum';
 import { useClipboard } from '../../../hooks/useClipBoard';
-import { showErrorToast, showSuccessToast } from '../../../utils/ToastUtils';
 import useCustomLocation from '../../../hooks/useCustomLocation/useCustomLocation';
 import entityUtilClassBase from '../../../utils/EntityUtilClassBase';
 import { getEntityName } from '../../../utils/EntityUtils';
 import { stringToHTML } from '../../../utils/StringsUtils';
+import { showErrorToast, showSuccessToast } from '../../../utils/ToastUtils';
 import './entity-header-title.less';
 import { EntityHeaderTitleProps } from './EntityHeaderTitle.interface';
 
@@ -74,9 +74,11 @@ const EntityHeaderTitle = ({
     if (!entityFqn) {
       return;
     }
-    
-    const fqnUrl = `${window.location.origin}/glossary/${encodeURIComponent(entityFqn)}`;
-    
+
+    const fqnUrl = `${window.location.origin}/glossary/${encodeURIComponent(
+      entityFqn
+    )}`;
+
     try {
       await navigator.clipboard.writeText(fqnUrl);
       showSuccessToast(t('message.copied-to-clipboard'));
@@ -90,9 +92,9 @@ const EntityHeaderTitle = ({
     if (!entityId) {
       return;
     }
-    
+
     const permanentUrl = `${window.location.origin}/glossary/${entityId}`;
-    
+
     try {
       await navigator.clipboard.writeText(permanentUrl);
       showSuccessToast(t('message.copied-to-clipboard'));
@@ -214,8 +216,13 @@ const EntityHeaderTitle = ({
                   {
                     key: 'copy-fqn-link',
                     label: (
-                      <div className="d-flex items-center gap-2" style={{ fontSize: '12px' }}>
-                        <Icon component={LinkIcon} style={{ fontSize: '12px' }} />
+                      <div
+                        className="d-flex items-center gap-2"
+                        style={{ fontSize: '12px' }}>
+                        <Icon
+                          component={LinkIcon}
+                          style={{ fontSize: '12px' }}
+                        />
                         <span>{t('label.copy-fqn-link')}</span>
                       </div>
                     ),
@@ -224,8 +231,13 @@ const EntityHeaderTitle = ({
                   {
                     key: 'copy-permanent-link',
                     label: (
-                      <div className="d-flex items-center gap-2" style={{ fontSize: '12px' }}>
-                        <Icon component={CopyIcon} style={{ fontSize: '12px' }} />
+                      <div
+                        className="d-flex items-center gap-2"
+                        style={{ fontSize: '12px' }}>
+                        <Icon
+                          component={CopyIcon}
+                          style={{ fontSize: '12px' }}
+                        />
                         <span>{t('label.copy-permanent-link')}</span>
                       </div>
                     ),
@@ -238,9 +250,7 @@ const EntityHeaderTitle = ({
               placement="bottomRight"
               trigger={['click']}
               onOpenChange={setShowCopyDropdown}>
-              <Tooltip
-                placement="topRight"
-                title={t('label.copy-link')}>
+              <Tooltip placement="topRight" title={t('label.copy-link')}>
                 <Button
                   className="remove-button-default-styling copy-button flex-center p-xss "
                   icon={<Icon component={ShareIcon} />}
