@@ -72,7 +72,6 @@ const EntityHeaderTitle = ({
 
   const handleCopyFqnLink = async () => {
     if (!entityFqn) {
-      showErrorToast(t('message.entity-name-not-found'));
       return;
     }
     
@@ -80,16 +79,15 @@ const EntityHeaderTitle = ({
     
     try {
       await navigator.clipboard.writeText(fqnUrl);
-      showSuccessToast(t('message.fqn-link-copied'));
+      showSuccessToast(t('message.copied-to-clipboard'));
     } catch {
-      showErrorToast(t('message.copy-link-error'));
+      showErrorToast(t('server.unexpected-error'));
     }
     setShowCopyDropdown(false);
   };
 
   const handleCopyPermanentLink = async () => {
     if (!entityId) {
-      showErrorToast(t('message.entity-id-not-found'));
       return;
     }
     
@@ -97,9 +95,9 @@ const EntityHeaderTitle = ({
     
     try {
       await navigator.clipboard.writeText(permanentUrl);
-      showSuccessToast(t('message.permanent-link-copied'));
+      showSuccessToast(t('message.copied-to-clipboard'));
     } catch {
-      showErrorToast(t('message.copy-link-error'));
+      showErrorToast(t('server.unexpected-error'));
     }
     setShowCopyDropdown(false);
   };
@@ -216,8 +214,8 @@ const EntityHeaderTitle = ({
                   {
                     key: 'copy-fqn-link',
                     label: (
-                      <div className="d-flex items-center gap-2">
-                        <Icon component={LinkIcon} style={{ fontSize: '14px' }} />
+                      <div className="d-flex items-center gap-2" style={{ fontSize: '12px' }}>
+                        <Icon component={LinkIcon} style={{ fontSize: '12px' }} />
                         <span>{t('label.copy-fqn-link')}</span>
                       </div>
                     ),
@@ -226,8 +224,8 @@ const EntityHeaderTitle = ({
                   {
                     key: 'copy-permanent-link',
                     label: (
-                      <div className="d-flex items-center gap-2">
-                        <Icon component={CopyIcon} style={{ fontSize: '14px' }} />
+                      <div className="d-flex items-center gap-2" style={{ fontSize: '12px' }}>
+                        <Icon component={CopyIcon} style={{ fontSize: '12px' }} />
                         <span>{t('label.copy-permanent-link')}</span>
                       </div>
                     ),
@@ -236,6 +234,7 @@ const EntityHeaderTitle = ({
                 ] as ItemType[],
               }}
               open={showCopyDropdown}
+              overlayStyle={{ minWidth: '180px' }}
               placement="bottomRight"
               trigger={['click']}
               onOpenChange={setShowCopyDropdown}>
